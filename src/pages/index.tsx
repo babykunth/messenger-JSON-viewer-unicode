@@ -5,19 +5,19 @@ import useSWR from 'swr';
 import randomColor from 'randomcolor';
 
 import Collapsible from '@/components/Collapsible';
-import Messages from '@/components/Messages';
 import SearchBar from '@/components/SearchBar';
 import SidebarChat from '@/components/SidebarChat';
 import SidebarChatSkeleton from '@/components/SidebarChatSkeleton';
 import ToggleTheme from '@/components/ToggleTheme';
 import { findInboxFolder } from '@/lib/utils/file';
 import {
+  decodeString,
   getMyselfName,
   loadChats,
   useChatStatistics,
   useCurrentMessage,
 } from '@/lib/utils/message';
-import { Chatroom } from '@/types';
+import { Chatroom, Message } from '@/types';
 
 const Home: NextPage = () => {
   const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(null);
@@ -136,8 +136,42 @@ const Home: NextPage = () => {
                 </div>
               </div>
 
-              <div className='flex-1 overflow-y-auto p-4'>
-                <Messages messages={currentMessage.messages} myName={myName} />
+              {/* Màn hình hiển thị danh sách tin nhắn */}
+              <div className='flex-1 overflow-y-auto p-4 space-y-3'>
+                {currentMessage.messages.map((msg: Message, idx: number) => {
+                  const sender = decodeString(msg.sender_name);
+                  const isMe = myName ? sender === myName : false;
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                    >
+                      <span className='text-xs text-gray-400 mb-1'>{sender}</span>
+                      <div
+                        className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm ${
+                          isMe
+                            ? 'bg-blue-600 text-white rounded-br-none'
+                            : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'
+                        }`}
+                      >
+                        {msg.content && <p className='whitespace-pre-wrap break-words'>{decodeString(msg.content)}</p>}
+                        {msg.photos && (
+                          <div className='mt-2 flex flex-wrap gap-1'>
+                            {msg.photos.map((p, pIdx) => (
+                              <span key={pIdx} className='text-xs text-blue-400 underline block'>
+                                📷 [Photo: {p.uri}]
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <span className='text-[10px] text-gray-500 mt-1'>
+                        {new Date(msg.timestamp_ms).toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
