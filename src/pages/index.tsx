@@ -14,7 +14,31 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
-// Component hiển thị hình ảnh từ FileSystemDirectoryHandle
+// Hàm tìm kiếm file đệ quy an toàn dựa vào tên file
+async function findFileRecursively(
+  dirHandle: FileSystemDirectoryHandle,
+  targetFileName: string,
+  maxDepth = 6
+): Promise<FileSystemFileHandle | null> {
+  if (maxDepth <= 0) return null;
+
+  try {
+    // Thử lấy file trực tiếp ở thư mục hiện tại
+    return await dirHandle.getFileHandle(targetFileName);
+  } catch {
+    // Nếu không có, duyệt qua tất cả các thư mục con
+    // @ts-expect-error - Async Iterator File System Access API
+    for await (const entry of dirHandle.values()) {
+      if (entry.kind === 'directory') {
+        const found = await findFileRecursively(entry, targetFileName, maxDepth - 1);
+        if (found) return found;
+      }
+    }
+  }
+  return null;
+}
+
+// Component FsImage với logic tìm kiếm đệ quy
 const FsImage = ({
   rootDir,
   uri,
@@ -38,31 +62,15 @@ const FsImage = ({
       }
 
       try {
-        // Tạo các biến thể đường dẫn để quét file
-        const cleanUri = uri.replace(/^your_facebook_activity\//, '');
-        const pathsToTry = [
-          cleanUri.split('/'),
-          uri.split('/'),
-          ['your_facebook_activity', ...cleanUri.split('/')],
-        ];
+        // Lấy tên file gốc (VD: 1540291384260785.jpg)
+        const fileName = uri.split('/').pop();
+        if (!fileName) throw new Error('Invalid file name');
 
-        let fileHandle: FileSystemFileHandle | null = null;
-
-        for (const pathParts of pathsToTry) {
-          try {
-            let currentHandle: any = rootDir;
-            for (let i = 0; i < pathParts.length - 1; i++) {
-              currentHandle = await currentHandle.getDirectoryHandle(pathParts[i]);
-            }
-            fileHandle = await currentHandle.getFileHandle(pathParts[pathParts.length - 1]);
-            if (fileHandle) break;
-          } catch {
-            // Thử tiếp đường dẫn khác nếu chưa tìm thấy
-          }
-        }
+        // Tìm file trong cây thư mục được chọn
+        const fileHandle = await findFileRecursively(rootDir, fileName);
 
         if (!fileHandle) {
-          throw new Error('File not found in folder structure');
+          throw new Error('File not found');
         }
 
         const file = await fileHandle.getFile();
@@ -74,7 +82,7 @@ const FsImage = ({
         }
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error('Không tìm thấy file ảnh:', uri, err);
+        console.error('Lỗi tải ảnh:', uri, err);
         if (isMounted) setError(true);
       }
     }
@@ -96,14 +104,18 @@ const FsImage = ({
   }
 
   if (!imgUrl) {
-    return <span className='text-xs text-gray-400 italic block mt-1 animate-pulse'>📷 Đang tải ảnh...</span>;
+    return (
+      <span className='text-xs text-gray-400 italic block mt-1 animate-pulse'>
+        📷 Đang tải ảnh...
+      </span>
+    );
   }
 
   return (
     <img
       src={imgUrl}
       alt={alt}
-      className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1'
+      className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1 shadow-md'
     />
   );
 };
@@ -263,7 +275,7 @@ const Home: NextPage = () => {
                       >
                         {msg.content && <p className='whitespace-pre-wrap break-words'>{decodeString(msg.content)}</p>}
                         
-                        {/* Photos Rendering */}
+                        {/* Render trực tiếp hình ảnh */}
                         {msg.photos && msg.photos.length > 0 && (
                           <div className='mt-2 flex flex-col gap-2'>
                             {msg.photos.map((p, pIdx) => (
