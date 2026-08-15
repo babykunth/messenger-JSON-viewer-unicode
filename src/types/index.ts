@@ -35,11 +35,16 @@ export interface Message {
   is_unsent_image_by_messenger_kid_parent?: boolean;
 }
 
+export interface Participant {
+  name: string;
+}
+
 export interface Chatroom {
   id: string;
   name: string;
   title: string;
   dirName: string;
   lastSent: number;
+  participants: Participant[];
   messages: Message[];
 }
