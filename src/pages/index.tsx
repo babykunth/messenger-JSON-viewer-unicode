@@ -56,7 +56,7 @@ async function getFileHandleFromUri(
   return null;
 }
 
-// Component FsImage xem phóng to ảnh
+// Component FsImage hỗ trợ phóng to
 const FsImage = ({
   rootDir,
   uri,
@@ -105,7 +105,7 @@ const FsImage = ({
 
   if (error) {
     return (
-      <span className='text-xs text-blue-400 underline block mt-1 break-all'>
+      <span className='text-xs text-blue-500 underline block mt-1 break-all'>
         📷 [Photo: {uri}]
       </span>
     );
@@ -125,7 +125,7 @@ const FsImage = ({
         src={imgUrl}
         alt={alt}
         onClick={() => setIsOpen(true)}
-        className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1 shadow-md cursor-pointer hover:opacity-90 transition-opacity'
+        className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-300 dark:border-gray-700 mt-1 shadow-md cursor-pointer hover:opacity-90 transition-opacity'
       />
 
       {isOpen && (
@@ -203,32 +203,34 @@ const Home: NextPage = () => {
   const currentMessage = useCurrentMessage(chats || null, selectedChatId);
   const chatStatistic = useChatStatistics(currentMessage);
 
+  const isDark = theme === 'dark';
+
   return (
-    <div className={`flex h-screen w-screen overflow-hidden ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+    <div className={`flex h-screen w-screen overflow-hidden ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
       <Head>
         <title>Messenger Archive Viewer</title>
       </Head>
 
       {/* Sidebar */}
-      <aside className='flex w-80 flex-col border-r border-gray-700 bg-gray-800/50'>
-        <div className='flex items-center justify-between p-4 border-b border-gray-700'>
+      <aside className={`flex w-80 flex-col border-r ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-100'}`}>
+        <div className={`flex items-center justify-between p-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           <h1 className='text-lg font-bold truncate'>
             {directory ? `${directory.name}'s history` : 'Messenger Viewer'}
           </h1>
           <div className='flex gap-2'>
             <button
               onClick={handleOpenFolder}
-              className='p-1.5 hover:bg-gray-700 rounded-lg transition-colors'
+              className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
               title='Chọn thư mục'
             >
               📁
             </button>
             <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className='p-1.5 hover:bg-gray-700 rounded-lg transition-colors text-sm'
+              onClick={() => setTheme(isDark ? 'light' : 'dark')}
+              className={`p-1.5 rounded-lg transition-colors text-sm ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
               title='Đổi giao diện'
             >
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {isDark ? '☀️' : '🌙'}
             </button>
           </div>
         </div>
@@ -239,19 +241,23 @@ const Home: NextPage = () => {
             placeholder='Tìm kiếm người dùng...'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className='w-full px-3 py-2 text-sm bg-gray-700 text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400'
+            className={`w-full px-3 py-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-blue-500 ${
+              isDark
+                ? 'bg-gray-700 text-white placeholder-gray-400'
+                : 'bg-white text-gray-900 placeholder-gray-500 border border-gray-300'
+            }`}
           />
         </div>
 
         <div className='flex-1 overflow-y-auto px-2 space-y-1'>
           {!directory && (
-            <div className='p-4 text-center text-sm text-gray-400'>
+            <div className={`p-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Vui lòng nhấn vào biểu tượng thư mục 📁 để tải dữ liệu Messenger.
             </div>
           )}
 
           {isLoadingChats && (
-            <div className='p-4 text-center text-sm text-gray-400 animate-pulse'>
+            <div className={`p-4 text-center text-sm animate-pulse ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
               Đang tải danh sách cuộc trò chuyện...
             </div>
           )}
@@ -265,11 +271,17 @@ const Home: NextPage = () => {
                 key={id}
                 onClick={() => setSelectedChatId(id)}
                 className={`cursor-pointer rounded-lg p-3 transition-colors ${
-                  isSelected ? 'bg-gray-700 font-medium' : 'hover:bg-gray-800/80'
+                  isSelected
+                    ? isDark
+                      ? 'bg-gray-700 font-medium'
+                      : 'bg-blue-100 font-medium text-blue-900'
+                    : isDark
+                    ? 'hover:bg-gray-800/80'
+                    : 'hover:bg-gray-200'
                 }`}
               >
                 <p className='font-semibold truncate text-sm'>{chat.title || chat.name}</p>
-                <p className='text-xs text-gray-400 truncate mt-0.5'>{chat.dirName}</p>
+                <p className={`text-xs truncate mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{chat.dirName}</p>
               </div>
             );
           })}
@@ -280,16 +292,16 @@ const Home: NextPage = () => {
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
-            <div className='flex flex-1 flex-col overflow-hidden border-r border-gray-700'>
-              <div className='flex items-center justify-between border-b border-gray-700 p-4'>
+            <div className={`flex flex-1 flex-col overflow-hidden border-r ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div className={`flex items-center justify-between border-b p-4 ${isDark ? 'border-gray-700' : 'border-gray-200 bg-white'}`}>
                 <div>
                   <h2 className='text-xl font-bold'>{currentMessage.title || currentMessage.name}</h2>
-                  <p className='text-xs text-gray-400'>{currentMessage.messages.length} messages</p>
+                  <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{currentMessage.messages.length} messages</p>
                 </div>
               </div>
 
               {/* Message List */}
-              <div className='flex-1 overflow-y-auto p-4 space-y-3'>
+              <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
                 {currentMessage.messages.map((msg: any, idx: number) => {
                   const sender = decodeString(msg.sender_name);
                   const isMe = myName ? sender === myName : false;
@@ -304,12 +316,14 @@ const Home: NextPage = () => {
                       key={idx}
                       className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                     >
-                      <span className='text-xs text-gray-400 mb-1'>{sender}</span>
+                      <span className={`text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{sender}</span>
                       <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm ${
+                        className={`max-w-[70%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
                           isMe
                             ? 'bg-blue-600 text-white rounded-br-none'
-                            : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'
+                            : isDark
+                            ? 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'
+                            : 'bg-white text-gray-800 rounded-bl-none border border-gray-200'
                         }`}
                       >
                         {/* Văn bản tin nhắn */}
@@ -335,7 +349,7 @@ const Home: NextPage = () => {
 
                         {/* Sticker */}
                         {hasSticker && (
-                          <div className='mt-1 italic text-xs text-yellow-400 flex items-center gap-1'>
+                          <div className='mt-1 italic text-xs text-yellow-500 flex items-center gap-1'>
                             <span>🎨 [Sticker: {msg.sticker.uri}]</span>
                           </div>
                         )}
@@ -344,7 +358,7 @@ const Home: NextPage = () => {
                         {hasVideos && (
                           <div className='mt-1 flex flex-col gap-1'>
                             {msg.videos.map((v: any, vIdx: number) => (
-                              <span key={vIdx} className='text-xs text-blue-400 underline break-all'>
+                              <span key={vIdx} className={`text-xs underline break-all ${isMe ? 'text-blue-100' : 'text-blue-600'}`}>
                                 🎥 [Video: {v.uri}]
                               </span>
                             ))}
@@ -357,20 +371,19 @@ const Home: NextPage = () => {
                             href={msg.share.link}
                             target='_blank'
                             rel='noreferrer'
-                            className='mt-1 block text-xs text-blue-300 underline break-all'
+                            className={`mt-1 block text-xs underline break-all ${isMe ? 'text-blue-100' : 'text-blue-600'}`}
                           >
                             🔗 {msg.share.link}
                           </a>
                         )}
 
-                        {/* Hiển thị dự phòng nếu tin nhắn không có bất kỳ loại dữ liệu nào trên */}
                         {!hasContent && !hasPhotos && !hasSticker && !hasVideos && !hasShare && (
-                          <span className='italic text-xs text-gray-400'>
-                            [Tin nhắn hệ thống / Sự kiện tin nhắn]
+                          <span className={`italic text-xs ${isMe ? 'text-blue-100' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            [Tin nhắn hệ thống]
                           </span>
                         )}
                       </div>
-                      <span className='text-[10px] text-gray-500 mt-1'>
+                      <span className={`text-[10px] mt-1 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
                         {new Date(msg.timestamp_ms).toLocaleString()}
                       </span>
                     </div>
@@ -380,17 +393,17 @@ const Home: NextPage = () => {
             </div>
 
             {/* Right Info Panel */}
-            <div className='w-80 overflow-y-auto p-4 space-y-4 border-l border-gray-700 bg-gray-800/30'>
-              <div className='border border-gray-700 rounded-lg overflow-hidden'>
+            <div className={`w-80 overflow-y-auto p-4 space-y-4 border-l ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-gray-100'}`}>
+              <div className={`border rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
                 <button
                   onClick={() => setIsMembersOpen(!isMembersOpen)}
-                  className='w-full px-4 py-3 bg-gray-800 flex justify-between items-center text-sm font-semibold'
+                  className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold ${isDark ? 'bg-gray-800' : 'bg-white text-gray-800'}`}
                 >
                   <span>Thành viên</span>
                   <span>{isMembersOpen ? '▲' : '▼'}</span>
                 </button>
                 {isMembersOpen && (
-                  <div className='p-4 space-y-2 text-sm bg-gray-900/50'>
+                  <div className={`p-4 space-y-2 text-sm ${isDark ? 'bg-gray-900/50' : 'bg-gray-50 text-gray-700'}`}>
                     {currentMessage.participants?.map((part: any) => (
                       <div key={part.name} className='flex items-center gap-2'>
                         <div
@@ -410,33 +423,33 @@ const Home: NextPage = () => {
               </div>
 
               {chatStatistic && (
-                <div className='border border-gray-700 rounded-lg overflow-hidden'>
+                <div className={`border rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
                   <button
                     onClick={() => setIsStatsOpen(!isStatsOpen)}
-                    className='w-full px-4 py-3 bg-gray-800 flex justify-between items-center text-sm font-semibold'
+                    className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold ${isDark ? 'bg-gray-800' : 'bg-white text-gray-800'}`}
                   >
                     <span>Thống kê</span>
                     <span>{isStatsOpen ? '▲' : '▼'}</span>
                   </button>
                   {isStatsOpen && (
-                    <div className='p-4 space-y-2 text-sm bg-gray-900/50'>
+                    <div className={`p-4 space-y-2 text-sm ${isDark ? 'bg-gray-900/50' : 'bg-gray-50 text-gray-700'}`}>
                       <div className='flex justify-between'>
-                        <span className='text-gray-400'>Tổng số tin nhắn:</span>
+                        <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Tổng số tin nhắn:</span>
                         <span>{chatStatistic.messageCount}</span>
                       </div>
                       {chatStatistic.createdAt > 0 && (
                         <div className='flex justify-between'>
-                          <span className='text-gray-400'>Ngày bắt đầu:</span>
+                          <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Ngày bắt đầu:</span>
                           <span>{new Date(chatStatistic.createdAt).toLocaleDateString()}</span>
                         </div>
                       )}
-                      <div className='mt-2 font-semibold text-gray-300 border-t border-gray-700 pt-2'>Top gửi tin:</div>
+                      <div className={`mt-2 font-semibold border-t pt-2 ${isDark ? 'text-gray-300 border-gray-700' : 'text-gray-800 border-gray-200'}`}>Top gửi tin:</div>
                       {Object.entries(chatStatistic.countInfo || {})
                         .sort(([, a], [, b]) => (b as number) - (a as number))
                         .map(([name, count]) => (
                           <div key={name} className='flex justify-between text-xs'>
                             <span className='truncate w-32'>{name}</span>
-                            <span className='text-gray-400'>{count as number}</span>
+                            <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>{count as number}</span>
                           </div>
                         ))}
                     </div>
