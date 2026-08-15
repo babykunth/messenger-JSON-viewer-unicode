@@ -1,15 +1,13 @@
 import { Chatroom, Message } from '../types';
 
-function fixFacebookEncoding(str: string): string {
+function decodeFBString(str: string): string {
   if (!str) return str;
   try {
-    return decodeURIComponent(
-      escape(
-        str.replace(/[\u0080-\u00ff]/g, (c) =>
-          String.fromCharCode(c.charCodeAt(0))
-        )
-      )
-    );
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      bytes[i] = str.charCodeAt(i) & 0xff;
+    }
+    return new TextDecoder('utf-8').decode(bytes);
   } catch (e) {
     return str;
   }
@@ -17,7 +15,7 @@ function fixFacebookEncoding(str: string): string {
 
 function fixObjectEncoding<T>(obj: T): T {
   if (typeof obj === 'string') {
-    return fixFacebookEncoding(obj) as unknown as T;
+    return decodeFBString(obj) as unknown as T;
   }
   if (Array.isArray(obj)) {
     return obj.map((item) => fixObjectEncoding(item)) as unknown as T;
@@ -60,7 +58,7 @@ export async function getChatrooms(
               messages.push(...data.messages);
             }
           } catch (e) {
-            console.error(`Lỗi khi đọc file ${fileEntry.name}:`, e);
+            console.error(`Lỗi đọc file ${fileEntry.name}:`, e);
           }
         }
       }
