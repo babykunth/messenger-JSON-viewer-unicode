@@ -1,4 +1,4 @@
-import { Chatroom, Message } from '../types';
+import { Chatroom, Message } from '../../types';
 
 export function decodeFBString(str: string | undefined): string {
   if (!str) return '';
