@@ -14,7 +14,7 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
-// Hàm lấy FileHandle từ URI
+// Hàm lấy FileHandle thông minh
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
@@ -56,7 +56,7 @@ async function getFileHandleFromUri(
   return null;
 }
 
-// Component hiển thị hình ảnh từ FileSystem
+// Component FsImage với hỗ trợ Modal phóng to
 const FsImage = ({
   rootDir,
   uri,
@@ -90,7 +90,7 @@ const FsImage = ({
           setImgUrl(objectUrl);
           setError(false);
         }
-      } catch {
+      } catch (err) {
         if (isMounted) setError(true);
       }
     }
@@ -105,15 +105,15 @@ const FsImage = ({
 
   if (error) {
     return (
-      <span className='text-xs text-red-500 dark:text-red-400 block mt-1 break-all font-medium'>
-        📷 [Không tìm thấy ảnh: {uri}]
+      <span className='text-xs text-blue-600 dark:text-blue-400 underline block mt-1 break-all font-medium'>
+        📷 [Photo: {uri}]
       </span>
     );
   }
 
   if (!imgUrl) {
     return (
-      <span className='text-xs text-gray-400 dark:text-gray-500 italic block mt-1 animate-pulse'>
+      <span className='text-xs text-gray-500 dark:text-gray-400 italic block mt-1 animate-pulse'>
         📷 Đang tải ảnh...
       </span>
     );
@@ -151,75 +151,6 @@ const FsImage = ({
         </div>
       )}
     </>
-  );
-};
-
-// Component phát Video từ FileSystem
-const FsVideo = ({
-  rootDir,
-  uri,
-}: {
-  rootDir: FileSystemDirectoryHandle | null;
-  uri: string;
-}) => {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    let objectUrl: string | null = null;
-
-    async function loadVideo() {
-      if (!rootDir || !uri) {
-        setError(true);
-        return;
-      }
-
-      try {
-        const fileHandle = await getFileHandleFromUri(rootDir, uri);
-        if (!fileHandle) throw new Error('File not found');
-
-        const file = await fileHandle.getFile();
-        if (isMounted) {
-          objectUrl = URL.createObjectURL(file);
-          setVideoUrl(objectUrl);
-          setError(false);
-        }
-      } catch {
-        if (isMounted) setError(true);
-      }
-    }
-
-    loadVideo();
-
-    return () => {
-      isMounted = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [rootDir, uri]);
-
-  if (error) {
-    return (
-      <span className='text-xs text-red-500 dark:text-red-400 block mt-1 break-all font-medium'>
-        🎥 [Không tìm thấy video: {uri}]
-      </span>
-    );
-  }
-
-  if (!videoUrl) {
-    return (
-      <span className='text-xs text-gray-400 dark:text-gray-500 italic block mt-1 animate-pulse'>
-        🎥 Đang tải video...
-      </span>
-    );
-  }
-
-  return (
-    <video
-      src={videoUrl}
-      controls
-      className='max-w-xs max-h-80 rounded-lg border border-gray-300 dark:border-gray-700 mt-1 shadow-md bg-black'
-    />
   );
 };
 
@@ -343,7 +274,9 @@ const Home: NextPage = () => {
                 onClick={() => setSelectedChatId(id)}
                 className={`cursor-pointer rounded-xl p-3 transition-colors ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-medium shadow-sm'
+                    ? isDark
+                      ? 'bg-blue-600 text-white font-medium shadow-sm'
+                      : 'bg-blue-600 text-white font-medium shadow-sm'
                     : isDark
                     ? 'hover:bg-gray-800/80 text-gray-200'
                     : 'hover:bg-gray-100 text-gray-800'
@@ -418,23 +351,21 @@ const Home: NextPage = () => {
                           </div>
                         )}
 
-                        {/* Video */}
-                        {hasVideos && (
-                          <div className='mt-2 flex flex-col gap-2'>
-                            {msg.videos.map((v: any, vIdx: number) => (
-                              <FsVideo
-                                key={vIdx}
-                                rootDir={directory}
-                                uri={v.uri}
-                              />
-                            ))}
-                          </div>
-                        )}
-
                         {/* Sticker */}
                         {hasSticker && (
                           <div className={`mt-1 italic text-xs flex items-center gap-1 ${isMe ? 'text-yellow-200' : isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
                             <span>🎨 [Sticker: {msg.sticker.uri}]</span>
+                          </div>
+                        )}
+
+                        {/* Video */}
+                        {hasVideos && (
+                          <div className='mt-1 flex flex-col gap-1'>
+                            {msg.videos.map((v: any, vIdx: number) => (
+                              <span key={vIdx} className={`text-xs underline break-all font-medium ${isMe ? 'text-blue-100' : isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                                🎥 [Video: {v.uri}]
+                              </span>
+                            ))}
                           </div>
                         )}
 
