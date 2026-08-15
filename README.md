@@ -9,6 +9,8 @@
 
 This is a simple tool to view Facebook Messenger exported JSON files. I made the UI into a Messenger clone, just for fun and to see what Tailwind CSS can do. Another reason is that I want to try out the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API), knowing that it can be used to access the file in a folder just in the browser.
 
+## What's new?
+
  - Support for decoding new Vietnamese Unicode characters.
 
 ### Technical Stack
