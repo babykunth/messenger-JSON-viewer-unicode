@@ -126,7 +126,13 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const content = decodeString(message.content || '');
+  const rawContent = decodeString(message.content || '');
+let content = rawContent;
+try {
+  content = decodeURIComponent(escape(rawContent));
+} catch (e) {
+  content = rawContent;
+}
   const { data: imageURIs } = useSWR(
     () =>
       message.type === MessageType.Generic && message.photos
