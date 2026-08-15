@@ -9,7 +9,7 @@ import { getFileHandleRecursively } from '@/lib/utils/file';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
-import { Message, MessageType } from '../types';
+import { Message } from '../types';
 
 function ReactionButton({
   reaction,
@@ -158,7 +158,7 @@ export default function MessageComponent({
     }
   );
 
-  // 1. Xử lý hiển thị ảnh
+  // 1. Hiển thị ảnh
   if (message.photos) {
     return (
       <SRLWrapper>
@@ -175,7 +175,7 @@ export default function MessageComponent({
     );
   }
 
-  // 2. Xử lý hiển thị Sticker
+  // 2. Hiển thị Nhãn dán (Sticker)
   if (message.sticker) {
     return (
       <BaseMessage
@@ -193,7 +193,7 @@ export default function MessageComponent({
     );
   }
 
-  // 3. Xử lý hiển thị Link Chia sẻ / Chia sẻ Vị trí
+  // 3. Hiển thị Link / Vị trí chia sẻ
   if (message.share) {
     return (
       <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
@@ -213,7 +213,6 @@ export default function MessageComponent({
     );
   }
 
-  // 4. Mặc định hiển thị văn bản tin nhắn
   return (
     <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
       {content}
