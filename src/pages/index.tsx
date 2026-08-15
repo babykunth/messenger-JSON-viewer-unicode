@@ -20,18 +20,15 @@ async function getFileHandleFromUri(
   uri: string
 ): Promise<FileSystemFileHandle | null> {
   try {
-    // Tách các thành phần trong đường dẫn
     let parts = uri.split('/').filter(Boolean);
     const fileName = parts.pop();
     if (!fileName) return null;
 
-    // Chuẩn hóa: Nếu rootDir đã là 'messages' hoặc 'inbox', cắt bỏ các phần tiền tố tương ứng
     const rootName = rootDir.name.toLowerCase();
     const firstMatchingIdx = parts.findIndex((p) => p.toLowerCase() === rootName);
     if (firstMatchingIdx !== -1) {
       parts = parts.slice(firstMatchingIdx + 1);
     } else {
-      // Loại bỏ prefix thừa nếu rootDir nằm sâu bên trong
       if (parts[0] === 'your_facebook_activity') parts.shift();
       if (parts[0] === 'messages' && rootName !== 'your_facebook_activity') parts.shift();
     }
@@ -41,13 +38,12 @@ async function getFileHandleFromUri(
       try {
         currentDir = await currentDir.getDirectoryHandle(part);
       } catch {
-        break; // Nếu không vào được thư mục con, chuyển qua dùng phương án dự phòng
+        break;
       }
     }
 
     return await currentDir.getFileHandle(fileName);
   } catch {
-    // Phương án dự phòng: Tìm trực tiếp theo tên file ở thư mục hiện tại
     try {
       const fileName = uri.split('/').pop();
       if (fileName) {
@@ -60,7 +56,7 @@ async function getFileHandleFromUri(
   return null;
 }
 
-// Component hiển thị hình ảnh từ FileSystemDirectoryHandle
+// Component FsImage có hỗ trợ nhấn phóng to ảnh
 const FsImage = ({
   rootDir,
   uri,
@@ -72,6 +68,7 @@ const FsImage = ({
 }) => {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -127,11 +124,39 @@ const FsImage = ({
   }
 
   return (
-    <img
-      src={imgUrl}
-      alt={alt}
-      className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1 shadow-md'
-    />
+    <>
+      {/* Ảnh thumbnail hiển thị trong tin nhắn */}
+      <img
+        src={imgUrl}
+        alt={alt}
+        onClick={() => setIsOpen(true)}
+        className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1 shadow-md cursor-pointer hover:opacity-90 transition-opacity'
+      />
+
+      {/* Modal hiển thị ảnh phóng to toàn màn hình */}
+      {isOpen && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4'
+          onClick={() => setIsOpen(false)}
+        >
+          <div className='relative max-w-full max-h-full flex items-center justify-center'>
+            <button
+              onClick={() => setIsOpen(false)}
+              className='absolute -top-10 right-0 text-white text-2xl font-bold bg-gray-800/80 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors'
+              title='Đóng'
+            >
+              ✕
+            </button>
+            <img
+              src={imgUrl}
+              alt={alt}
+              className='max-w-[90vw] max-h-[90vh] object-contain rounded-lg shadow-2xl'
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
