@@ -4,11 +4,6 @@ import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import randomColor from 'randomcolor';
 
-import Collapsible from '@/components/Collapsible';
-import SearchBar from '@/components/SearchBar';
-import SidebarChat from '@/components/SidebarChat';
-import SidebarChatSkeleton from '@/components/SidebarChatSkeleton';
-import ToggleTheme from '@/components/ToggleTheme';
 import { findInboxFolder } from '@/lib/utils/file';
 import {
   decodeString,
@@ -78,7 +73,7 @@ const Home: NextPage = () => {
       <aside className='flex w-80 flex-col border-r border-gray-700 bg-gray-800/50'>
         <div className='flex items-center justify-between p-4 border-b border-gray-700'>
           <h1 className='text-lg font-bold truncate'>
-            {directory ? `${directory.name}'s chat history` : 'Messenger Viewer'}
+            {directory ? `${directory.name}'s history` : 'Messenger Viewer'}
           </h1>
           <div className='flex gap-2'>
             <button
@@ -88,14 +83,28 @@ const Home: NextPage = () => {
             >
               📁
             </button>
-            <ToggleTheme theme={theme} setTheme={setTheme} />
+            <button
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className='p-1.5 hover:bg-gray-700 rounded-lg transition-colors text-sm'
+              title='Đổi giao diện'
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
           </div>
         </div>
 
+        {/* Thanh tìm kiếm */}
         <div className='p-3'>
-          <SearchBar search={search} setSearch={setSearch} />
+          <input
+            type='text'
+            placeholder='Tìm kiếm người dùng...'
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className='w-full px-3 py-2 text-sm bg-gray-700 text-white rounded-lg outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400'
+          />
         </div>
 
+        {/* Danh sách cuộc trò chuyện */}
         <div className='flex-1 overflow-y-auto px-2 space-y-1'>
           {!directory && (
             <div className='p-4 text-center text-sm text-gray-400'>
@@ -103,7 +112,11 @@ const Home: NextPage = () => {
             </div>
           )}
 
-          {isLoadingChats && <SidebarChatSkeleton />}
+          {isLoadingChats && (
+            <div className='p-4 text-center text-sm text-gray-400 animate-pulse'>
+              Đang tải danh sách cuộc trò chuyện...
+            </div>
+          )}
 
           {filteredChats.map((chat) => {
             const id = chat.id || chat.dirName;
@@ -117,14 +130,15 @@ const Home: NextPage = () => {
                   isSelected ? 'bg-gray-700 font-medium' : 'hover:bg-gray-800/80'
                 }`}
               >
-                <SidebarChat chat={chat} />
+                <p className='font-semibold truncate text-sm'>{chat.title || chat.name}</p>
+                <p className='text-xs text-gray-400 truncate mt-0.5'>{chat.dirName}</p>
               </div>
             );
           })}
         </div>
       </aside>
 
-      {/* Cột bên phải: Nội dung tin nhắn */}
+      {/* Cột bên phải: Màn hình tin nhắn */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
@@ -136,7 +150,7 @@ const Home: NextPage = () => {
                 </div>
               </div>
 
-              {/* Màn hình hiển thị danh sách tin nhắn */}
+              {/* Khung tin nhắn */}
               <div className='flex-1 overflow-y-auto p-4 space-y-3'>
                 {currentMessage.messages.map((msg: Message, idx: number) => {
                   const sender = decodeString(msg.sender_name);
@@ -177,57 +191,69 @@ const Home: NextPage = () => {
 
             {/* Panel thông tin bên phải */}
             <div className='w-80 overflow-y-auto p-4 space-y-4 border-l border-gray-700 bg-gray-800/30'>
-              <Collapsible
-                title='Thành viên'
-                isOpen={isMembersOpen}
-                onToggle={() => setIsMembersOpen(!isMembersOpen)}
-              >
-                <div className='flex flex-col gap-2 py-2'>
-                  {currentMessage.participants?.map((part) => (
-                    <div key={part.name} className='flex items-center gap-2'>
-                      <div
-                        className='h-3 w-3 rounded-full'
-                        style={{
-                          backgroundColor: randomColor({
-                            seed: part.name,
-                            luminosity: theme,
-                          }),
-                        }}
-                      />
-                      <span className='text-sm'>{part.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </Collapsible>
-
-              {chatStatistic && (
-                <Collapsible
-                  title='Thống kê'
-                  isOpen={isStatsOpen}
-                  onToggle={() => setIsStatsOpen(!isStatsOpen)}
+              {/* Collapsible Thành viên */}
+              <div className='border border-gray-700 rounded-lg overflow-hidden'>
+                <button
+                  onClick={() => setIsMembersOpen(!isMembersOpen)}
+                  className='w-full px-4 py-3 bg-gray-800 flex justify-between items-center text-sm font-semibold'
                 >
-                  <div className='flex flex-col gap-2 py-2 text-sm'>
-                    <div className='flex justify-between'>
-                      <span className='text-gray-400'>Tổng số tin nhắn:</span>
-                      <span>{chatStatistic.messageCount}</span>
-                    </div>
-                    {chatStatistic.createdAt > 0 && (
-                      <div className='flex justify-between'>
-                        <span className='text-gray-400'>Ngày bắt đầu:</span>
-                        <span>{new Date(chatStatistic.createdAt).toLocaleDateString()}</span>
+                  <span>Thành viên</span>
+                  <span>{isMembersOpen ? '▲' : '▼'}</span>
+                </button>
+                {isMembersOpen && (
+                  <div className='p-4 space-y-2 text-sm bg-gray-900/50'>
+                    {currentMessage.participants?.map((part) => (
+                      <div key={part.name} className='flex items-center gap-2'>
+                        <div
+                          className='h-3 w-3 rounded-full'
+                          style={{
+                            backgroundColor: randomColor({
+                              seed: part.name,
+                              luminosity: theme,
+                            }),
+                          }}
+                        />
+                        <span className='truncate'>{part.name}</span>
                       </div>
-                    )}
-                    <div className='mt-2 font-semibold text-gray-300'>Top gửi tin:</div>
-                    {Object.entries(chatStatistic.countInfo || {})
-                      .sort(([, a], [, b]) => b - a)
-                      .map(([name, count]) => (
-                        <div key={name} className='flex justify-between text-xs'>
-                          <span className='truncate w-32'>{name}</span>
-                          <span className='text-gray-400'>{count}</span>
-                        </div>
-                      ))}
+                    ))}
                   </div>
-                </Collapsible>
+                )}
+              </div>
+
+              {/* Collapsible Thống kê */}
+              {chatStatistic && (
+                <div className='border border-gray-700 rounded-lg overflow-hidden'>
+                  <button
+                    onClick={() => setIsStatsOpen(!isStatsOpen)}
+                    className='w-full px-4 py-3 bg-gray-800 flex justify-between items-center text-sm font-semibold'
+                  >
+                    <span>Thống kê</span>
+                    <span>{isStatsOpen ? '▲' : '▼'}</span>
+                  </button>
+                  {isStatsOpen && (
+                    <div className='p-4 space-y-2 text-sm bg-gray-900/50'>
+                      <div className='flex justify-between'>
+                        <span className='text-gray-400'>Tổng số tin nhắn:</span>
+                        <span>{chatStatistic.messageCount}</span>
+                      </div>
+                      {chatStatistic.createdAt > 0 && (
+                        <div className='flex justify-between'>
+                          <span className='text-gray-400'>Ngày bắt đầu:</span>
+                          <span>{new Date(chatStatistic.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                      <div className='mt-2 font-semibold text-gray-300 border-t border-gray-700 pt-2'>Top gửi tin:</div>
+                      {Object.entries(chatStatistic.countInfo || {})
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([name, count]) => (
+                          <div key={name} className='flex justify-between text-xs'>
+                            <span className='truncate w-32'>{name}</span>
+                            <span className='text-gray-400'>{count}</span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
