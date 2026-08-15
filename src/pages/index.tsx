@@ -14,7 +14,7 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom } from '@/types';
 
-// Hàm tìm kiếm đệ quy file trong thư mục dựa vào tên file
+// Hàm quét đệ quy tìm file (ảnh hoặc video) trong thư mục được chọn
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
@@ -41,7 +41,7 @@ async function getFileHandleFromUri(
     return await findFileRecursively(rootDir);
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error('Lỗi khi quét đệ quy file:', err);
+    console.error('Lỗi khi quét file:', err);
     return null;
   }
 }
@@ -144,7 +144,7 @@ const FsImage = ({
   );
 };
 
-// Component FsVideo - Trình phát video trực tiếp
+// Component FsVideo - Phát video trực tiếp
 const FsVideo = ({
   rootDir,
   uri,
@@ -409,7 +409,7 @@ const Home: NextPage = () => {
                           </div>
                         )}
 
-                        {/* Gọi component FsVideo để phát video */}
+                        {/* HIỂN THỊ TRÌNH PHÁT VIDEO */}
                         {hasVideos && (
                           <div className='mt-2 flex flex-col gap-2'>
                             {msg.videos.map((v: any, vIdx: number) => (
