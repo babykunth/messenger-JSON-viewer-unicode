@@ -25,7 +25,7 @@ const Home: NextPage = () => {
 
   const handleOpenFolder = async () => {
     try {
-      // @ts-ignore - File System Access API
+      // @ts-expect-error - File System Access API
       const handle = await window.showDirectoryPicker();
       if (handle) {
         setDirectory(handle);
@@ -33,6 +33,8 @@ const Home: NextPage = () => {
         setInboxDir(inbox);
       }
     } catch (err) {
+      // ESLint ignore cho console error
+      // eslint-disable-next-line no-console
       console.error('Lỗi khi chọn thư mục:', err);
     }
   };
