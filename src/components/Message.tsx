@@ -6,10 +6,23 @@ import useSWR from 'swr';
 
 import useToggle from '@/lib/hooks/useToggle';
 import { getFileHandleRecursively } from '@/lib/utils/file';
-import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
+import { useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
 import { Message, MessageType } from '../types';
+
+function decodeString(str: string | undefined): string {
+  if (!str) return '';
+  try {
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      bytes[i] = str.charCodeAt(i) & 0xff;
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch {
+    return str;
+  }
+}
 
 function ReactionButton({
   reaction,
@@ -27,7 +40,7 @@ function ReactionButton({
       padding={10}
       content={() => (
         <div className='rounded bg-gray-600 py-0.5 px-1 text-white'>
-          {actors.map(decodeString).join(', ')}
+          {actors.map((actor) => decodeString(actor)).join(', ')}
         </div>
       )}
       onClickOutside={() => setPopoverOpen(false)}
@@ -78,7 +91,7 @@ function BaseMessage({
           className={cx(
             'relative whitespace-pre-wrap rounded-2xl px-4 py-2',
             {
-              'rounded-r-md  text-white ': isMe,
+              'rounded-r-md text-white ': isMe,
               'bg-blue-400 dark:bg-blue-700': isMe && !transparentBG,
               'rounded-l-md dark:bg-slate-800': !isMe,
               'bg-gray-200': !isMe && !transparentBG,
@@ -129,11 +142,11 @@ export default function MessageComponent({
   const content = decodeString(message.content || '');
   const { data: imageURIs } = useSWR(
     () =>
-      message.type === MessageType.Generic && message.photos
+      message.photos
         ? `/message/photo/${message.timestamp_ms}`
         : null,
     async () => {
-      if (!(message.type === MessageType.Generic && message.photos)) {
+      if (!message.photos) {
         return [];
       }
 
@@ -165,7 +178,70 @@ export default function MessageComponent({
     </BaseMessage>
   );
 
-  const renderNotImplemented = () => (
+  // Xử lý ảnh
+  if (message.photos) {
+    return (
+      <SRLWrapper>
+        <BaseMessage
+          isFirst={isFirst}
+          isLast={isLast}
+          isMe={isMe}
+          message={message}
+        >
+          {imageURIs
+            ? imageURIs.map((uri) => (
+                <a href={uri} key={uri}>
+                  <img src={uri} alt={uri} />
+                </a>
+              ))
+            : content}
+        </BaseMessage>
+      </SRLWrapper>
+    );
+  }
+
+  if (message.sticker) {
+    return (
+      <BaseMessage
+        isFirst={isFirst}
+        isLast={isLast}
+        isMe={isMe}
+        message={message}
+        transparentBG
+      >
+        <FsImage
+          root={rootDir}
+          path={message.sticker.uri.replace(/^messages\//, '')}
+        />
+      </BaseMessage>
+    );
+  }
+
+  if (message.share?.link || (message.type === MessageType.Share && message.share)) {
+    return (
+      <BaseMessage
+        isFirst={isFirst}
+        isLast={isLast}
+        isMe={isMe}
+        message={message}
+      >
+        <a
+          href={message.share?.link || '#'}
+          target='_blank'
+          rel='noreferrer'
+          className='underline'
+        >
+          {content || decodeString(message.share?.share_text)}
+        </a>
+      </BaseMessage>
+    );
+  }
+
+  if (message.content || !message.type) {
+    return renderDefault();
+  }
+
+  return (
     <BaseMessage
       isFirst={isFirst}
       isLast={isLast}
@@ -179,73 +255,4 @@ export default function MessageComponent({
       </pre>
     </BaseMessage>
   );
-
-  switch (message.type) {
-    case MessageType.Generic: {
-      if (message.photos) {
-        return (
-          <SRLWrapper>
-            <BaseMessage
-              isFirst={isFirst}
-              isLast={isLast}
-              isMe={isMe}
-              message={message}
-            >
-              {imageURIs
-                ? imageURIs.map((uri) => (
-                    <a href={uri} key={uri}>
-                      <img src={uri} alt={uri} />
-                    </a>
-                  ))
-                : content}
-            </BaseMessage>
-          </SRLWrapper>
-        );
-      } else if (message.content) {
-        return renderDefault();
-      } else if (message.sticker) {
-        return (
-          <BaseMessage
-            isFirst={isFirst}
-            isLast={isLast}
-            isMe={isMe}
-            message={message}
-            transparentBG
-          >
-            <FsImage
-              root={rootDir}
-              path={message.sticker.uri.replace(/^messages\//, '')}
-            />
-          </BaseMessage>
-        );
-      } else {
-        return renderDefault();
-      }
-    }
-    case MessageType.Share: {
-      if (message.share?.link) {
-        return (
-          <BaseMessage
-            isFirst={isFirst}
-            isLast={isLast}
-            isMe={isMe}
-            message={message}
-          >
-            <a
-              href={message.share.link}
-              target='_blank'
-              rel='noreferrer'
-              className='underline'
-            >
-              {content}
-            </a>
-          </BaseMessage>
-        );
-      } else {
-        return renderDefault();
-      }
-    }
-    default:
-      return renderNotImplemented();
-  }
 }
