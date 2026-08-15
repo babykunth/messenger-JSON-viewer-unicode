@@ -1,60 +1,80 @@
-export async function findInboxFolder(dir: FileSystemDirectoryHandle) {
-  const dirs: FileSystemDirectoryHandle[] = [];
-  for await (const entry of dir.values()) {
+import { Chatroom, Message } from '../types';
+
+function fixFacebookEncoding(str: string): string {
+  if (!str) return str;
+  try {
+    return decodeURIComponent(
+      escape(
+        str.replace(/[\u0080-\u00ff]/g, (c) =>
+          String.fromCharCode(c.charCodeAt(0))
+        )
+      )
+    );
+  } catch (e) {
+    return str;
+  }
+}
+
+function fixObjectEncoding<T>(obj: T): T {
+  if (typeof obj === 'string') {
+    return fixFacebookEncoding(obj) as unknown as T;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => fixObjectEncoding(item)) as unknown as T;
+  }
+  if (obj !== null && typeof obj === 'object') {
+    const newObj: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      newObj[key] = fixObjectEncoding((obj as Record<string, any>)[key]);
+    }
+    return newObj as T;
+  }
+  return obj;
+}
+
+export async function readJsonFile<T>(fileHandle: FileSystemFileHandle): Promise<T> {
+  const file = await fileHandle.getFile();
+  const text = await file.text();
+  const data = JSON.parse(text);
+  return fixObjectEncoding(data);
+}
+
+export async function getChatrooms(
+  dirHandle: FileSystemDirectoryHandle
+): Promise<Chatroom[]> {
+  const chatrooms: Chatroom[] = [];
+
+  for await (const entry of dirHandle.values()) {
     if (entry.kind === 'directory') {
-      dirs.push(entry);
+      const messages: Message[] = [];
+      let chatroomName = entry.name;
+
+      for await (const fileEntry of entry.values()) {
+        if (fileEntry.kind === 'file' && fileEntry.name.endsWith('.json')) {
+          try {
+            const data = await readJsonFile<any>(fileEntry);
+            if (data.title) {
+              chatroomName = data.title;
+            }
+            if (data.messages && Array.isArray(data.messages)) {
+              messages.push(...data.messages);
+            }
+          } catch (e) {
+            console.error(`Lỗi khi đọc file ${fileEntry.name}:`, e);
+          }
+        }
+      }
+
+      if (messages.length > 0) {
+        messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+        chatrooms.push({
+          id: entry.name,
+          name: chatroomName,
+          messages,
+        });
+      }
     }
   }
 
-  const inbox = dirs.find((dir) => dir.name === 'inbox');
-  if (inbox) {
-    return inbox;
-  }
-}
-export async function getSubDirs(dir: FileSystemDirectoryHandle) {
-  const entries: FileSystemDirectoryHandle[] = [];
-
-  for await (const entry of dir.values()) {
-    if (entry.kind === 'directory') {
-      entries.push(entry);
-    }
-  }
-
-  return entries;
-}
-
-export async function readMessageJSON(dir: FileSystemDirectoryHandle) {
-  try {
-    const file = await dir.getFileHandle('message_1.json');
-
-    return (await file.getFile()).text();
-  } catch (e) {
-    return null;
-  }
-}
-
-export async function readAutofillInformation(dir: FileSystemDirectoryHandle) {
-  try {
-    const file = await dir.getFileHandle('autofill_information.json');
-
-    return (await file.getFile()).text();
-  } catch (e) {
-    return null;
-  }
-}
-
-export async function getFileHandleRecursively(
-  root: FileSystemDirectoryHandle,
-  path: string
-): Promise<FileSystemFileHandle | null> {
-  const parts = path.split('/');
-
-  if (parts.length === 0) {
-    return null;
-  } else if (parts.length === 1) {
-    return root.getFileHandle(parts[0]);
-  } else {
-    const dir = await root.getDirectoryHandle(parts[0]);
-    return getFileHandleRecursively(dir, parts.slice(1).join('/'));
-  }
+  return chatrooms;
 }
