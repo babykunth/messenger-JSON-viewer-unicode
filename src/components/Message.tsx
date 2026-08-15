@@ -11,6 +11,10 @@ import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 import FsImage from './FsImage';
 import { Message, MessageType } from '../types';
 
+import { decodeString } from '@/lib/utils/message';
+const senderName = decodeString(message.sender_name);
+const content = decodeString(message.content || '');
+
 function ReactionButton({
   reaction,
   actors,
