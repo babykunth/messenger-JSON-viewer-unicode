@@ -14,7 +14,7 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
-// Hàm xử lý lấy FileHandle thông minh, tự cắt prefix trùng lặp
+// Hàm xử lý lấy FileHandle thông minh
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
@@ -56,7 +56,7 @@ async function getFileHandleFromUri(
   return null;
 }
 
-// Component FsImage có hỗ trợ nhấn phóng to ảnh
+// Component FsImage xem phóng to ảnh
 const FsImage = ({
   rootDir,
   uri,
@@ -82,13 +82,9 @@ const FsImage = ({
 
       try {
         const fileHandle = await getFileHandleFromUri(rootDir, uri);
-
-        if (!fileHandle) {
-          throw new Error('File not found');
-        }
+        if (!fileHandle) throw new Error('File not found');
 
         const file = await fileHandle.getFile();
-
         if (isMounted) {
           objectUrl = URL.createObjectURL(file);
           setImgUrl(objectUrl);
@@ -125,7 +121,6 @@ const FsImage = ({
 
   return (
     <>
-      {/* Ảnh thumbnail hiển thị trong tin nhắn */}
       <img
         src={imgUrl}
         alt={alt}
@@ -133,7 +128,6 @@ const FsImage = ({
         className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1 shadow-md cursor-pointer hover:opacity-90 transition-opacity'
       />
 
-      {/* Modal hiển thị ảnh phóng to toàn màn hình */}
       {isOpen && (
         <div
           className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4'
@@ -142,7 +136,7 @@ const FsImage = ({
           <div className='relative max-w-full max-h-full flex items-center justify-center'>
             <button
               onClick={() => setIsOpen(false)}
-              className='absolute -top-10 right-0 text-white text-2xl font-bold bg-gray-800/80 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors'
+              className='absolute -top-10 right-0 text-white text-2xl font-bold bg-gray-800/80 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center'
               title='Đóng'
             >
               ✕
@@ -296,9 +290,14 @@ const Home: NextPage = () => {
 
               {/* Message List */}
               <div className='flex-1 overflow-y-auto p-4 space-y-3'>
-                {currentMessage.messages.map((msg: Message, idx: number) => {
+                {currentMessage.messages.map((msg: any, idx: number) => {
                   const sender = decodeString(msg.sender_name);
                   const isMe = myName ? sender === myName : false;
+                  const hasContent = Boolean(msg.content);
+                  const hasPhotos = msg.photos && msg.photos.length > 0;
+                  const hasSticker = Boolean(msg.sticker);
+                  const hasVideos = msg.videos && msg.videos.length > 0;
+                  const hasShare = Boolean(msg.share?.link);
 
                   return (
                     <div
@@ -313,12 +312,17 @@ const Home: NextPage = () => {
                             : 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'
                         }`}
                       >
-                        {msg.content && <p className='whitespace-pre-wrap break-words'>{decodeString(msg.content)}</p>}
-                        
-                        {/* Render hình ảnh trực tiếp */}
-                        {msg.photos && msg.photos.length > 0 && (
+                        {/* Văn bản tin nhắn */}
+                        {hasContent && (
+                          <p className='whitespace-pre-wrap break-words'>
+                            {decodeString(msg.content)}
+                          </p>
+                        )}
+
+                        {/* Hình ảnh */}
+                        {hasPhotos && (
                           <div className='mt-2 flex flex-col gap-2'>
-                            {msg.photos.map((p, pIdx) => (
+                            {msg.photos.map((p: any, pIdx: number) => (
                               <FsImage
                                 key={pIdx}
                                 rootDir={directory}
@@ -327,6 +331,43 @@ const Home: NextPage = () => {
                               />
                             ))}
                           </div>
+                        )}
+
+                        {/* Sticker */}
+                        {hasSticker && (
+                          <div className='mt-1 italic text-xs text-yellow-400 flex items-center gap-1'>
+                            <span>🎨 [Sticker: {msg.sticker.uri}]</span>
+                          </div>
+                        )}
+
+                        {/* Video */}
+                        {hasVideos && (
+                          <div className='mt-1 flex flex-col gap-1'>
+                            {msg.videos.map((v: any, vIdx: number) => (
+                              <span key={vIdx} className='text-xs text-blue-400 underline break-all'>
+                                🎥 [Video: {v.uri}]
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Share link */}
+                        {hasShare && (
+                          <a
+                            href={msg.share.link}
+                            target='_blank'
+                            rel='noreferrer'
+                            className='mt-1 block text-xs text-blue-300 underline break-all'
+                          >
+                            🔗 {msg.share.link}
+                          </a>
+                        )}
+
+                        {/* Hiển thị dự phòng nếu tin nhắn không có bất kỳ loại dữ liệu nào trên */}
+                        {!hasContent && !hasPhotos && !hasSticker && !hasVideos && !hasShare && (
+                          <span className='italic text-xs text-gray-400'>
+                            [Tin nhắn hệ thống / Sự kiện tin nhắn]
+                          </span>
                         )}
                       </div>
                       <span className='text-[10px] text-gray-500 mt-1'>
@@ -350,7 +391,7 @@ const Home: NextPage = () => {
                 </button>
                 {isMembersOpen && (
                   <div className='p-4 space-y-2 text-sm bg-gray-900/50'>
-                    {currentMessage.participants?.map((part) => (
+                    {currentMessage.participants?.map((part: any) => (
                       <div key={part.name} className='flex items-center gap-2'>
                         <div
                           className='h-3 w-3 rounded-full'
@@ -391,11 +432,11 @@ const Home: NextPage = () => {
                       )}
                       <div className='mt-2 font-semibold text-gray-300 border-t border-gray-700 pt-2'>Top gửi tin:</div>
                       {Object.entries(chatStatistic.countInfo || {})
-                        .sort(([, a], [, b]) => b - a)
+                        .sort(([, a], [, b]) => (b as number) - (a as number))
                         .map(([name, count]) => (
                           <div key={name} className='flex justify-between text-xs'>
                             <span className='truncate w-32'>{name}</span>
-                            <span className='text-gray-400'>{count}</span>
+                            <span className='text-gray-400'>{count as number}</span>
                           </div>
                         ))}
                     </div>
