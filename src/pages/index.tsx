@@ -25,32 +25,57 @@ const FsImage = ({
   alt: string;
 }) => {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     let objectUrl: string | null = null;
 
     async function loadImage() {
-      if (!rootDir || !uri) return;
-      try {
-        // Chuẩn hóa đường dẫn Facebook Export
-        const parts = uri.replace(/^your_facebook_activity\//, '').split('/');
-        let currentHandle: any = rootDir;
+      if (!rootDir || !uri) {
+        setError(true);
+        return;
+      }
 
-        for (let i = 0; i < parts.length - 1; i++) {
-          currentHandle = await currentHandle.getDirectoryHandle(parts[i]);
+      try {
+        // Tạo các biến thể đường dẫn để quét file
+        const cleanUri = uri.replace(/^your_facebook_activity\//, '');
+        const pathsToTry = [
+          cleanUri.split('/'),
+          uri.split('/'),
+          ['your_facebook_activity', ...cleanUri.split('/')],
+        ];
+
+        let fileHandle: FileSystemFileHandle | null = null;
+
+        for (const pathParts of pathsToTry) {
+          try {
+            let currentHandle: any = rootDir;
+            for (let i = 0; i < pathParts.length - 1; i++) {
+              currentHandle = await currentHandle.getDirectoryHandle(pathParts[i]);
+            }
+            fileHandle = await currentHandle.getFileHandle(pathParts[pathParts.length - 1]);
+            if (fileHandle) break;
+          } catch {
+            // Thử tiếp đường dẫn khác nếu chưa tìm thấy
+          }
         }
 
-        const fileHandle = await currentHandle.getFileHandle(parts[parts.length - 1]);
+        if (!fileHandle) {
+          throw new Error('File not found in folder structure');
+        }
+
         const file = await fileHandle.getFile();
 
         if (isMounted) {
           objectUrl = URL.createObjectURL(file);
           setImgUrl(objectUrl);
+          setError(false);
         }
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error('Không thể tải ảnh:', uri, err);
+        console.error('Không tìm thấy file ảnh:', uri, err);
+        if (isMounted) setError(true);
       }
     }
 
@@ -62,8 +87,16 @@ const FsImage = ({
     };
   }, [rootDir, uri]);
 
+  if (error) {
+    return (
+      <span className='text-xs text-blue-400 underline block mt-1 break-all'>
+        📷 [Photo: {uri}]
+      </span>
+    );
+  }
+
   if (!imgUrl) {
-    return <span className='text-xs text-gray-400 italic'>📷 Đang tải ảnh...</span>;
+    return <span className='text-xs text-gray-400 italic block mt-1 animate-pulse'>📷 Đang tải ảnh...</span>;
   }
 
   return (
@@ -197,7 +230,7 @@ const Home: NextPage = () => {
         </div>
       </aside>
 
-      {/* Chat Area */}
+      {/* Main Chat Area */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
@@ -209,7 +242,7 @@ const Home: NextPage = () => {
                 </div>
               </div>
 
-              {/* Danh sách tin nhắn */}
+              {/* Message List */}
               <div className='flex-1 overflow-y-auto p-4 space-y-3'>
                 {currentMessage.messages.map((msg: Message, idx: number) => {
                   const sender = decodeString(msg.sender_name);
@@ -230,9 +263,9 @@ const Home: NextPage = () => {
                       >
                         {msg.content && <p className='whitespace-pre-wrap break-words'>{decodeString(msg.content)}</p>}
                         
-                        {/* Render trực tiếp hình ảnh */}
+                        {/* Photos Rendering */}
                         {msg.photos && msg.photos.length > 0 && (
-                          <div className='mt-2 flex flex-wrap gap-2'>
+                          <div className='mt-2 flex flex-col gap-2'>
                             {msg.photos.map((p, pIdx) => (
                               <FsImage
                                 key={pIdx}
@@ -253,7 +286,7 @@ const Home: NextPage = () => {
               </div>
             </div>
 
-            {/* Info Panel */}
+            {/* Right Info Panel */}
             <div className='w-80 overflow-y-auto p-4 space-y-4 border-l border-gray-700 bg-gray-800/30'>
               <div className='border border-gray-700 rounded-lg overflow-hidden'>
                 <button
