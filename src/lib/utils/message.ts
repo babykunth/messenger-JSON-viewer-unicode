@@ -6,10 +6,17 @@ import { Chat, Message, MessageData } from '@/types';
 
 const decoder = new TextDecoder('utf-8');
 
-export function decodeString(str: string) {
-  return decoder.decode(
-    new Uint8Array(str.split('').map((s) => s.charCodeAt(0)))
-  );
+export function decodeString(str: string | undefined): string {
+  if (!str) return '';
+  try {
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+      bytes[i] = str.charCodeAt(i) & 0xff;
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch {
+    return str || '';
+  }
 }
 
 export async function getMyselfName(
