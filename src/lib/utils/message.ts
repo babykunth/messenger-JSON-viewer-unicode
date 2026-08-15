@@ -16,12 +16,19 @@ export function decodeString(str: string | undefined): string {
   }
 }
 
-// Lấy tên bản thân dựa trên tần suất gửi tin nhắn
-export function getMyselfName(messages: Message[]): string | null {
-  if (!messages || messages.length === 0) return null;
+// Lấy tên bản thân (chấp nhận mảng Message[], FileSystemDirectoryHandle hoặc null)
+export function getMyselfName(
+  messagesOrDir: Message[] | FileSystemDirectoryHandle | null
+): string | null {
+  if (!messagesOrDir) return null;
+
+  if (!Array.isArray(messagesOrDir)) {
+    // Nếu truyền vào FileSystemDirectoryHandle, trả về tên thư mục hoặc null
+    return messagesOrDir.name || null;
+  }
 
   const nameCounts: Record<string, number> = {};
-  for (const msg of messages) {
+  for (const msg of messagesOrDir) {
     if (msg.sender_name) {
       const name = decodeString(msg.sender_name);
       nameCounts[name] = (nameCounts[name] || 0) + 1;
@@ -41,7 +48,9 @@ export function getMyselfName(messages: Message[]): string | null {
 }
 
 // Tải danh sách chatroom (chấp nhận cả null)
-export async function loadChats(inboxHandle: FileSystemDirectoryHandle | null): Promise<Chatroom[]> {
+export async function loadChats(
+  inboxHandle: FileSystemDirectoryHandle | null
+): Promise<Chatroom[]> {
   if (!inboxHandle) return [];
   return await getChatrooms(inboxHandle);
 }
@@ -93,26 +102,29 @@ export function useGroupedMessages(messages: Message[] | Chatroom | null) {
 export function useChatStatistics(chat: Chatroom | Message[] | null) {
   const messages = Array.isArray(chat) ? chat : chat?.messages || [];
 
-  const { data } = useSWR(messages.length > 0 ? `stats/${messages.length}` : null, () => {
-    if (!messages || messages.length === 0) return null;
+  const { data } = useSWR(
+    messages.length > 0 ? `stats/${messages.length}` : null,
+    () => {
+      if (!messages || messages.length === 0) return null;
 
-    const messageCount = messages.length;
-    const participants = new Set<string>();
+      const messageCount = messages.length;
+      const participants = new Set<string>();
 
-    for (const msg of messages) {
-      if (msg.sender_name) {
-        participants.add(decodeString(msg.sender_name));
+      for (const msg of messages) {
+        if (msg.sender_name) {
+          participants.add(decodeString(msg.sender_name));
+        }
       }
-    }
 
-    return {
-      messageCount,
-      participantCount: participants.size,
-      participants: Array.from(participants),
-      firstTimestamp: messages[0]?.timestamp_ms,
-      lastTimestamp: messages[messages.length - 1]?.timestamp_ms,
-    };
-  });
+      return {
+        messageCount,
+        participantCount: participants.size,
+        participants: Array.from(participants),
+        firstTimestamp: messages[0]?.timestamp_ms,
+        lastTimestamp: messages[messages.length - 1]?.timestamp_ms,
+      };
+    }
+  );
 
   return data;
 }
