@@ -27,7 +27,7 @@ function ReactionButton({
       padding={10}
       content={() => (
         <div className='rounded bg-gray-600 py-0.5 px-1 text-white'>
-          {actors.map((actor) => decodeString(actor)).join(', ')}
+          {actors.map(decodeString).join(', ')}
         </div>
       )}
       onClickOutside={() => setPopoverOpen(false)}
@@ -78,7 +78,7 @@ function BaseMessage({
           className={cx(
             'relative whitespace-pre-wrap rounded-2xl px-4 py-2',
             {
-              'rounded-r-md text-white ': isMe,
+              'rounded-r-md  text-white ': isMe,
               'bg-blue-400 dark:bg-blue-700': isMe && !transparentBG,
               'rounded-l-md dark:bg-slate-800': !isMe,
               'bg-gray-200': !isMe && !transparentBG,
@@ -126,17 +126,14 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const msgAny = message as Record<string, any>;
-  const rawContent = message.content || msgAny.share?.share_text || '';
-  const content = decodeString(rawContent);
-
+  const content = decodeString(message.content || '');
   const { data: imageURIs } = useSWR(
     () =>
-      message.photos
+      message.type === MessageType.Generic && message.photos
         ? `/message/photo/${message.timestamp_ms}`
         : null,
     async () => {
-      if (!message.photos) {
+      if (!(message.type === MessageType.Generic && message.photos)) {
         return [];
       }
 
@@ -168,63 +165,87 @@ export default function MessageComponent({
     </BaseMessage>
   );
 
-  if (message.photos) {
-    return (
-      <SRLWrapper>
-        <BaseMessage
-          isFirst={isFirst}
-          isLast={isLast}
-          isMe={isMe}
-          message={message}
-        >
-          {imageURIs && imageURIs.length > 0
-            ? imageURIs.map((uri) => (
-                <a href={uri} key={uri}>
-                  <img src={uri} alt={uri} />
-                </a>
-              ))
-            : content}
-        </BaseMessage>
-      </SRLWrapper>
-    );
-  }
+  const renderNotImplemented = () => (
+    <BaseMessage
+      isFirst={isFirst}
+      isLast={isLast}
+      isMe={isMe}
+      className='bg-red-500 text-white dark:bg-red-700'
+      message={message}
+    >
+      Not implemented
+      <pre className='mt-3 whitespace-pre-wrap text-xs'>
+        <code>{JSON.stringify(message)}</code>
+      </pre>
+    </BaseMessage>
+  );
 
-  if (message.sticker) {
-    return (
-      <BaseMessage
-        isFirst={isFirst}
-        isLast={isLast}
-        isMe={isMe}
-        message={message}
-        transparentBG
-      >
-        <FsImage
-          root={rootDir}
-          path={message.sticker.uri.replace(/^messages\//, '')}
-        />
-      </BaseMessage>
-    );
+  switch (message.type) {
+    case MessageType.Generic: {
+      if (message.photos) {
+        return (
+          <SRLWrapper>
+            <BaseMessage
+              isFirst={isFirst}
+              isLast={isLast}
+              isMe={isMe}
+              message={message}
+            >
+              {imageURIs
+                ? imageURIs.map((uri) => (
+                    <a href={uri} key={uri}>
+                      <img src={uri} alt={uri} />
+                    </a>
+                  ))
+                : content}
+            </BaseMessage>
+          </SRLWrapper>
+        );
+      } else if (message.content) {
+        return renderDefault();
+      } else if (message.sticker) {
+        return (
+          <BaseMessage
+            isFirst={isFirst}
+            isLast={isLast}
+            isMe={isMe}
+            message={message}
+            transparentBG
+          >
+            <FsImage
+              root={rootDir}
+              path={message.sticker.uri.replace(/^messages\//, '')}
+            />
+          </BaseMessage>
+        );
+      } else {
+        return renderDefault();
+      }
+    }
+    case MessageType.Share: {
+      if (message.share?.link) {
+        return (
+          <BaseMessage
+            isFirst={isFirst}
+            isLast={isLast}
+            isMe={isMe}
+            message={message}
+          >
+            <a
+              href={message.share.link}
+              target='_blank'
+              rel='noreferrer'
+              className='underline'
+            >
+              {content}
+            </a>
+          </BaseMessage>
+        );
+      } else {
+        return renderDefault();
+      }
+    }
+    default:
+      return renderNotImplemented();
   }
-
-  if (msgAny.share?.link) {
-    return (
-      <BaseMessage
-        isFirst={isFirst}
-        isLast={isLast}
-        isMe={isMe}
-        message={message}
-      >
-        <a
-          href={msgAny.share.link}
-          target='_blank'
-          rel='noreferrer'
-          className='underline'
-        >
-          {content}
-        </a>
-      </BaseMessage>
-    );
-  }
-
-  return renderDefault();
 }
