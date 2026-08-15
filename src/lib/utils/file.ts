@@ -9,7 +9,7 @@ export function decodeFBString(str: string | undefined): string {
     }
     return new TextDecoder('utf-8').decode(bytes);
   } catch {
-    return str;
+    return str || '';
   }
 }
 
@@ -101,9 +101,14 @@ export async function getChatrooms(
 
       if (messages.length > 0) {
         messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+        const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
+
         chatrooms.push({
           id: entry.name,
           name: chatroomName,
+          title: chatroomName,
+          dirName: entry.name,
+          lastSent: lastTimestamp,
           messages,
         });
       }
