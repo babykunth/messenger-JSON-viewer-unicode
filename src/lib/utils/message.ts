@@ -61,13 +61,17 @@ export function useGroupedActorsByReaction(message: Message) {
 }
 
 // Hook gom nhóm các tin nhắn liên tiếp của cùng 1 người
-export function useGroupedMessages(messages: Message[]) {
+export function useGroupedMessages(messages: Message[] | Chatroom | null) {
+  const msgList = Array.isArray(messages)
+    ? messages
+    : messages?.messages || [];
+
   const grouped: Message[][] = [];
   let currentGroup: Message[] = [];
 
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
-    const prevMsg = messages[i - 1];
+  for (let i = 0; i < msgList.length; i++) {
+    const msg = msgList[i];
+    const prevMsg = msgList[i - 1];
 
     if (!prevMsg || prevMsg.sender_name === msg.sender_name) {
       currentGroup.push(msg);
@@ -85,16 +89,16 @@ export function useGroupedMessages(messages: Message[]) {
 }
 
 // Hook tính toán thống kê cuộc trò chuyện
-export function useChatStatistics(chat: Chatroom | null) {
-  const { data } = useSWR(chat ? `stats/${chat.id}` : null, () => {
-    if (!chat) return null;
+export function useChatStatistics(chat: Chatroom | Message[] | null) {
+  const messages = Array.isArray(chat) ? chat : chat?.messages || [];
 
-    const messageCount = chat.messages.length;
+  const { data } = useSWR(messages.length > 0 ? `stats/${messages.length}` : null, () => {
+    if (!messages || messages.length === 0) return null;
+
+    const messageCount = messages.length;
     const participants = new Set<string>();
-    let firstTimestamp = chat.messages[0]?.timestamp_ms;
-    let lastTimestamp = chat.messages[chat.messages.length - 1]?.timestamp_ms;
 
-    for (const msg of chat.messages) {
+    for (const msg of messages) {
       if (msg.sender_name) {
         participants.add(decodeString(msg.sender_name));
       }
@@ -104,16 +108,31 @@ export function useChatStatistics(chat: Chatroom | null) {
       messageCount,
       participantCount: participants.size,
       participants: Array.from(participants),
-      firstTimestamp,
-      lastTimestamp,
+      firstTimestamp: messages[0]?.timestamp_ms,
+      lastTimestamp: messages[messages.length - 1]?.timestamp_ms,
     };
   });
 
   return data;
 }
 
-// Hook lấy tin nhắn hiện tại
-export function useCurrentMessage(chat: Chatroom | null, index: number) {
-  if (!chat || !chat.messages[index]) return null;
-  return chat.messages[index];
+// Hook lấy cuộc trò chuyện/tin nhắn hiện tại với tham số thứ 2 là tùy chọn (?)
+export function useCurrentMessage(
+  folderNameOrChats: string | Chatroom[] | null,
+  folderNameOptional?: string | number | null
+) {
+  if (typeof folderNameOrChats === 'string' || folderNameOrChats === null) {
+    return null;
+  }
+
+  if (Array.isArray(folderNameOrChats)) {
+    if (typeof folderNameOptional === 'string') {
+      return folderNameOrChats.find((c) => c.id === folderNameOptional) || null;
+    }
+    if (typeof folderNameOptional === 'number') {
+      return folderNameOrChats[folderNameOptional] || null;
+    }
+  }
+
+  return null;
 }
