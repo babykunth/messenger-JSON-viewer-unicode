@@ -154,6 +154,36 @@ export default function MessageComponent({
     }
   );
 
+  // Thêm xử lý SWR để đọc tệp video cục bộ qua File System Access API
+  const { data: videoURIs } = useSWR(
+    () =>
+      message.videos
+        ? `/message/video/${message.timestamp_ms}`
+        : null,
+    async () => {
+      if (!message.videos) {
+        return [];
+      }
+
+      // Xử lý trường hợp message.videos có thể là mảng hoặc chuỗi tùy cấu trúc dữ liệu JSON xuất ra
+      const videoList = Array.isArray(message.videos) ? message.videos : [message.videos];
+
+      const videos = await Promise.all(
+        videoList.map(async (videoUri: string) => {
+          const uri = videoUri.replace(/^messages\//, '');
+          const fileHandle = await getFileHandleRecursively(rootDir, uri);
+          if (!fileHandle) {
+            return null;
+          }
+          const file = await fileHandle.getFile();
+          return URL.createObjectURL(file);
+        })
+      );
+
+      return videos.filter(Boolean) as string[];
+    }
+  );
+
   const renderDefault = () => (
     <BaseMessage
       isFirst={isFirst}
@@ -183,6 +213,29 @@ export default function MessageComponent({
             : content}
         </BaseMessage>
       </SRLWrapper>
+    );
+  }
+
+  // Thêm điều kiện xử lý hiển thị Video trực tiếp
+  if (message.videos) {
+    return (
+      <BaseMessage
+        isFirst={isFirst}
+        isLast={isLast}
+        isMe={isMe}
+        message={message}
+      >
+        {videoURIs && videoURIs.length > 0
+          ? videoURIs.map((uri) => (
+              <video
+                key={uri}
+                controls
+                className="max-h-80 w-full rounded-md object-contain bg-black"
+                src={uri}
+              />
+            ))
+          : content || '[Đang tải video...]'}
+      </BaseMessage>
     );
   }
 
