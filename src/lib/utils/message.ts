@@ -6,15 +6,10 @@ import { Chat, Message, MessageData } from '@/types';
 
 const decoder = new TextDecoder('utf-8');
 
-export function decodeString(str?: string | null): string {
-  if (!str) return '';
-  try {
-    return decoder.decode(
-      new Uint8Array(str.split('').map((s) => s.charCodeAt(0)))
-    );
-  } catch (e) {
-    return str;
-  }
+export function decodeString(str: string) {
+  return decoder.decode(
+    new Uint8Array(str.split('').map((s) => s.charCodeAt(0)))
+  );
 }
 
 export async function getMyselfName(
@@ -25,7 +20,7 @@ export async function getMyselfName(
     const autofill = JSON.parse(json);
     return decodeString(
       autofill['autofill_information_v2']?.['FULL_NAME']?.[0]
-    );
+    ) as string;
   } else {
     return null;
   }
@@ -48,12 +43,11 @@ export async function loadChats(
         chatCache.set(dir.name, messageJSON);
 
         const message: MessageData = JSON.parse(messageJSON);
-        const name = decodeString(message.participants[0]?.name || '');
+        const name = decodeString(message.participants[0].name);
 
-        const sorted = message.messages.sort(
+        const lastSent = message.messages.sort(
           (a, b) => a.timestamp_ms - b.timestamp_ms
-        );
-        const lastSent = sorted[0]?.timestamp_ms || 0;
+        )[0].timestamp_ms;
 
         return {
           name,
@@ -85,7 +79,7 @@ export function useCurrentMessage(folderName: string | null) {
 // Group message by consecutive sender name
 export function useGroupedMessages(currentMessage: MessageData | null) {
   return useMemo<Message[][]>(() => {
-    if (!currentMessage || !currentMessage.messages.length) {
+    if (!currentMessage) {
       return [];
     }
 
@@ -124,15 +118,14 @@ function countMessageBySenderName(messages: Message[]) {
 
 export function useChatStatistics(currentMessage: MessageData | null) {
   return useMemo(() => {
-    if (!currentMessage || !currentMessage.messages.length) {
+    if (!currentMessage) {
       return null;
     }
 
     const countInfo = countMessageBySenderName(currentMessage.messages);
-    const sorted = currentMessage.messages.sort(
+    const createdAt = currentMessage.messages.sort(
       (a, b) => a.timestamp_ms - b.timestamp_ms
-    );
-    const createdAt = sorted[0].timestamp_ms;
+    )[0].timestamp_ms;
 
     return {
       countInfo,
