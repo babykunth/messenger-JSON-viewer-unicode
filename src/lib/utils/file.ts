@@ -14,8 +14,9 @@ export function decodeFBString(str: string | undefined): string {
 }
 
 export async function findInboxFolder(
-  dirHandle: FileSystemDirectoryHandle
+  dirHandle: FileSystemDirectoryHandle | null
 ): Promise<FileSystemDirectoryHandle | null> {
+  if (!dirHandle) return null;
   if (dirHandle.name === 'inbox') {
     return dirHandle;
   }
@@ -30,7 +31,7 @@ export async function findInboxFolder(
           const inbox = await entry.getDirectoryHandle('inbox');
           return inbox;
         } catch {
-          // Tiếp tục tìm kiếm
+          // Bỏ qua nếu không thấy
         }
       }
       const found = await findInboxFolder(entry);
@@ -42,9 +43,10 @@ export async function findInboxFolder(
 }
 
 export async function getFileHandleRecursively(
-  dirHandle: FileSystemDirectoryHandle,
+  dirHandle: FileSystemDirectoryHandle | null,
   relativePath: string
 ): Promise<FileSystemFileHandle | null> {
+  if (!dirHandle) return null;
   const parts = relativePath.split('/').filter(Boolean);
   let currentDir = dirHandle;
 
@@ -70,8 +72,9 @@ export async function readJsonFile<T>(fileHandle: FileSystemFileHandle): Promise
 }
 
 export async function getChatrooms(
-  dirHandle: FileSystemDirectoryHandle
+  dirHandle: FileSystemDirectoryHandle | null
 ): Promise<Chatroom[]> {
+  if (!dirHandle) return [];
   const chatrooms: Chatroom[] = [];
 
   for await (const entry of dirHandle.values()) {
