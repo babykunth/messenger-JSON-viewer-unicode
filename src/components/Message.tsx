@@ -9,9 +9,9 @@ import { getFileHandleRecursively } from '@/lib/utils/file';
 import { useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
-import { Message, MessageType } from '../types';
+import { Message } from '../types';
 
-function decodeString(str: string | undefined): string {
+function decodeText(str?: string): string {
   if (!str) return '';
   try {
     const bytes = new Uint8Array(str.length);
@@ -40,12 +40,12 @@ function ReactionButton({
       padding={10}
       content={() => (
         <div className='rounded bg-gray-600 py-0.5 px-1 text-white'>
-          {actors.map((actor) => decodeString(actor)).join(', ')}
+          {actors.map((actor) => decodeText(actor)).join(', ')}
         </div>
       )}
       onClickOutside={() => setPopoverOpen(false)}
     >
-      <span onClick={togglePopover}>{decodeString(reaction)}</span>
+      <span onClick={togglePopover}>{decodeText(reaction)}</span>
     </Popover>
   );
 }
@@ -139,27 +139,28 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const content = decodeString(message.content || '');
+  const content = decodeText(message.content);
+  const rawMsg = message as any;
+
   const { data: imageURIs } = useSWR(
     () =>
-      message.photos
+      rawMsg.photos
         ? `/message/photo/${message.timestamp_ms}`
         : null,
     async () => {
-      if (!message.photos) {
+      if (!rawMsg.photos) {
         return [];
       }
 
       const images = await Promise.all(
-        message.photos.map(async (photo) => {
+        rawMsg.photos.map(async (photo: any) => {
           const uri = photo.uri.replace(/^messages\//, '');
           const fileHandle = await getFileHandleRecursively(rootDir, uri);
           if (!fileHandle) {
             return null;
           }
           const file = await fileHandle.getFile();
-          const url = URL.createObjectURL(file);
-          return url;
+          return URL.createObjectURL(file);
         })
       );
 
@@ -178,8 +179,7 @@ export default function MessageComponent({
     </BaseMessage>
   );
 
-  // Xử lý ảnh
-  if (message.photos) {
+  if (rawMsg.photos) {
     return (
       <SRLWrapper>
         <BaseMessage
@@ -200,7 +200,7 @@ export default function MessageComponent({
     );
   }
 
-  if (message.sticker) {
+  if (rawMsg.sticker) {
     return (
       <BaseMessage
         isFirst={isFirst}
@@ -211,13 +211,13 @@ export default function MessageComponent({
       >
         <FsImage
           root={rootDir}
-          path={message.sticker.uri.replace(/^messages\//, '')}
+          path={rawMsg.sticker.uri.replace(/^messages\//, '')}
         />
       </BaseMessage>
     );
   }
 
-  if (message.share?.link || (message.type === MessageType.Share && message.share)) {
+  if (rawMsg.share?.link) {
     return (
       <BaseMessage
         isFirst={isFirst}
@@ -226,33 +226,16 @@ export default function MessageComponent({
         message={message}
       >
         <a
-          href={message.share?.link || '#'}
+          href={rawMsg.share.link}
           target='_blank'
           rel='noreferrer'
           className='underline'
         >
-          {content || decodeString(message.share?.share_text)}
+          {content || decodeText(rawMsg.share.share_text)}
         </a>
       </BaseMessage>
     );
   }
 
-  if (message.content || !message.type) {
-    return renderDefault();
-  }
-
-  return (
-    <BaseMessage
-      isFirst={isFirst}
-      isLast={isLast}
-      isMe={isMe}
-      className='bg-red-500 text-white dark:bg-red-700'
-      message={message}
-    >
-      Not implemented
-      <pre className='mt-3 whitespace-pre-wrap text-xs'>
-        <code>{JSON.stringify(message)}</code>
-      </pre>
-    </BaseMessage>
-  );
+  return renderDefault();
 }
