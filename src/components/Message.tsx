@@ -7,9 +7,9 @@ import useSWR from 'swr';
 import useToggle from '@/lib/hooks/useToggle';
 import { getFileHandleRecursively } from '@/lib/utils/file';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
+import { Message, Photo } from '@/types';
 
 import FsImage from './FsImage';
-import { Message, Photo } from '../types';
 
 function ReactionButton({
   reaction,
