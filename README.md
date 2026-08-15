@@ -11,7 +11,7 @@ This is a simple tool to view Facebook Messenger exported JSON files. I made the
 
 ## What's new?
 
- - Support for decoding new Vietnamese Unicode characters.
+ - Support for decode Vietnamese Unicode characters.
 
 ### Technical Stack
 
