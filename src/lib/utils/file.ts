@@ -1,4 +1,4 @@
-import { Chatroom, Message } from '@/types';
+import { Chatroom, Message, Participant } from '@/types';
 
 export function decodeFBString(str: string | undefined): string {
   if (!str) return '';
@@ -80,6 +80,7 @@ export async function getChatrooms(
   for await (const entry of dirHandle.values()) {
     if (entry.kind === 'directory') {
       const messages: Message[] = [];
+      const participantSet = new Set<string>();
       let chatroomName = entry.name;
 
       for await (const fileEntry of entry.values()) {
@@ -89,6 +90,13 @@ export async function getChatrooms(
             const data = await readJsonFile<any>(fileEntry);
             if (data.title) {
               chatroomName = decodeFBString(data.title);
+            }
+            if (data.participants && Array.isArray(data.participants)) {
+              for (const p of data.participants) {
+                if (p.name) {
+                  participantSet.add(decodeFBString(p.name));
+                }
+              }
             }
             if (data.messages && Array.isArray(data.messages)) {
               messages.push(...data.messages);
@@ -103,12 +111,26 @@ export async function getChatrooms(
         messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
         const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
 
+        // Nếu file JSON không có field participants, tự lấy danh sách người gửi
+        if (participantSet.size === 0) {
+          for (const msg of messages) {
+            if (msg.sender_name) {
+              participantSet.add(decodeFBString(msg.sender_name));
+            }
+          }
+        }
+
+        const participants: Participant[] = Array.from(participantSet).map((name) => ({
+          name,
+        }));
+
         chatrooms.push({
           id: entry.name,
           name: chatroomName,
           title: chatroomName,
           dirName: entry.name,
           lastSent: lastTimestamp,
+          participants,
           messages,
         });
       }
