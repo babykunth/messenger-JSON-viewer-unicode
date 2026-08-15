@@ -97,7 +97,7 @@ export function useGroupedMessages(messages: Message[] | Chatroom | null) {
   return grouped;
 }
 
-// Hook tính toán thống kê cuộc trò chuyện (đã bổ sung trường createdAt)
+// Hook tính toán thống kê cuộc trò chuyện (đã bổ sung countInfo)
 export function useChatStatistics(chat: Chatroom | Message[] | null) {
   const messages = Array.isArray(chat) ? chat : chat?.messages || [];
 
@@ -108,10 +108,13 @@ export function useChatStatistics(chat: Chatroom | Message[] | null) {
 
       const messageCount = messages.length;
       const participants = new Set<string>();
+      const countInfo: Record<string, number> = {};
 
       for (const msg of messages) {
         if (msg.sender_name) {
-          participants.add(decodeString(msg.sender_name));
+          const senderName = decodeString(msg.sender_name);
+          participants.add(senderName);
+          countInfo[senderName] = (countInfo[senderName] || 0) + 1;
         }
       }
 
@@ -122,6 +125,7 @@ export function useChatStatistics(chat: Chatroom | Message[] | null) {
         messageCount,
         participantCount: participants.size,
         participants: Array.from(participants),
+        countInfo,
         firstTimestamp,
         lastTimestamp,
         createdAt: firstTimestamp,
