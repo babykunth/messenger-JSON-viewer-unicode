@@ -97,7 +97,7 @@ export function useGroupedMessages(messages: Message[] | Chatroom | null) {
   return grouped;
 }
 
-// Hook tính toán thống kê cuộc trò chuyện (đã bổ sung countInfo)
+// Hook tính toán thống kê cuộc trò chuyện
 export function useChatStatistics(chat: Chatroom | Message[] | null) {
   const messages = Array.isArray(chat) ? chat : chat?.messages || [];
 
@@ -136,22 +136,28 @@ export function useChatStatistics(chat: Chatroom | Message[] | null) {
   return data;
 }
 
-// Hook lấy cuộc trò chuyện/tin nhắn hiện tại
+// Hook lấy cuộc trò chuyện/tin nhắn hiện tại (tìm linh hoạt theo id / dirName / name)
 export function useCurrentMessage(
   folderNameOrChats: string | Chatroom[] | null,
   folderNameOptional?: string | number | null
-) {
-  if (typeof folderNameOrChats === 'string' || folderNameOrChats === null) {
-    return null;
-  }
+): Chatroom | null {
+  if (!folderNameOrChats) return null;
 
   if (Array.isArray(folderNameOrChats)) {
-    if (typeof folderNameOptional === 'string') {
-      return folderNameOrChats.find((c) => c.id === folderNameOptional) || null;
+    if (folderNameOptional === null || folderNameOptional === undefined) {
+      return null;
     }
+
     if (typeof folderNameOptional === 'number') {
       return folderNameOrChats[folderNameOptional] || null;
     }
+
+    const key = String(folderNameOptional);
+    return (
+      folderNameOrChats.find(
+        (c) => c.id === key || c.dirName === key || c.name === key || c.title === key
+      ) || null
+    );
   }
 
   return null;
