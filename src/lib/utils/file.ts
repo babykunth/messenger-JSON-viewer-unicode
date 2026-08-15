@@ -1,4 +1,4 @@
-import { Chatroom, Message } from '../../types';
+import { Chatroom, Message } from '@/types';
 
 export function decodeFBString(str: string | undefined): string {
   if (!str) return '';
@@ -11,6 +11,34 @@ export function decodeFBString(str: string | undefined): string {
   } catch {
     return str;
   }
+}
+
+export async function findInboxFolder(
+  dirHandle: FileSystemDirectoryHandle
+): Promise<FileSystemDirectoryHandle | null> {
+  if (dirHandle.name === 'inbox') {
+    return dirHandle;
+  }
+
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind === 'directory') {
+      if (entry.name === 'inbox') {
+        return entry;
+      }
+      if (entry.name === 'messages') {
+        try {
+          const inbox = await entry.getDirectoryHandle('inbox');
+          return inbox;
+        } catch {
+          // Tiếp tục tìm kiếm
+        }
+      }
+      const found = await findInboxFolder(entry);
+      if (found) return found;
+    }
+  }
+
+  return null;
 }
 
 export async function getFileHandleRecursively(
@@ -54,6 +82,7 @@ export async function getChatrooms(
       for await (const fileEntry of entry.values()) {
         if (fileEntry.kind === 'file' && fileEntry.name.endsWith('.json')) {
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const data = await readJsonFile<any>(fileEntry);
             if (data.title) {
               chatroomName = decodeFBString(data.title);
