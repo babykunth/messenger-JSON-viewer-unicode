@@ -14,30 +14,42 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
-// Hàm tìm kiếm file đệ quy an toàn dựa vào tên file
-async function findFileRecursively(
-  dirHandle: FileSystemDirectoryHandle,
-  targetFileName: string,
-  maxDepth = 6
+// Hàm xử lý lấy file handle từ chuỗi đường dẫn URI
+async function getFileHandleFromUri(
+  rootDir: FileSystemDirectoryHandle,
+  uri: string
 ): Promise<FileSystemFileHandle | null> {
-  if (maxDepth <= 0) return null;
-
   try {
-    // Thử lấy file trực tiếp ở thư mục hiện tại
-    return await dirHandle.getFileHandle(targetFileName);
-  } catch {
-    // Nếu không có, duyệt qua tất cả các thư mục con bằng ép kiểu (dirHandle as any)
-    for await (const entry of (dirHandle as any).values()) {
-      if (entry.kind === 'directory') {
-        const found = await findFileRecursively(entry, targetFileName, maxDepth - 1);
-        if (found) return found;
+    const parts = uri.split('/').filter(Boolean);
+    const fileName = parts.pop();
+
+    if (!fileName) return null;
+
+    let currentDir = rootDir;
+
+    for (const part of parts) {
+      try {
+        currentDir = await currentDir.getDirectoryHandle(part);
+      } catch {
+        break;
       }
+    }
+
+    return await currentDir.getFileHandle(fileName);
+  } catch {
+    try {
+      const fileName = uri.split('/').pop();
+      if (fileName) {
+        return await rootDir.getFileHandle(fileName);
+      }
+    } catch {
+      return null;
     }
   }
   return null;
 }
 
-// Component FsImage hiển thị ảnh trực tiếp từ thư mục
+// Component hiển thị hình ảnh từ FileSystemDirectoryHandle
 const FsImage = ({
   rootDir,
   uri,
@@ -61,10 +73,7 @@ const FsImage = ({
       }
 
       try {
-        const fileName = uri.split('/').pop();
-        if (!fileName) throw new Error('Invalid file name');
-
-        const fileHandle = await findFileRecursively(rootDir, fileName);
+        const fileHandle = await getFileHandleFromUri(rootDir, uri);
 
         if (!fileHandle) {
           throw new Error('File not found');
@@ -78,8 +87,6 @@ const FsImage = ({
           setError(false);
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error('Lỗi tải ảnh:', uri, err);
         if (isMounted) setError(true);
       }
     }
@@ -272,7 +279,7 @@ const Home: NextPage = () => {
                       >
                         {msg.content && <p className='whitespace-pre-wrap break-words'>{decodeString(msg.content)}</p>}
                         
-                        {/* Render trực tiếp hình ảnh */}
+                        {/* Render hình ảnh trực tiếp */}
                         {msg.photos && msg.photos.length > 0 && (
                           <div className='mt-2 flex flex-col gap-2'>
                             {msg.photos.map((p, pIdx) => (
