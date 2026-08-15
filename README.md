@@ -4,25 +4,24 @@
   <img src="./public/ios/180.png" alt="Messenger Viewer" width="200" height="200">
 </p>
 
+## Đây là gì?
 
-## What's this?
+Đây là một công cụ đơn giản để xem các tệp JSON được xuất từ Facebook Messenger. Tôi thiết kế giao diện mô phỏng theo Messenger cho vui và để thử nghiệm khả năng của Tailwind CSS. Một lý do khác là tôi muốn thử dùng [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API), khi biết rằng nó có thể dùng để truy cập tệp trong thư mục ngay trên trình duyệt.
 
-This is a simple tool to view Facebook Messenger exported JSON files. I made the UI into a Messenger clone, just for fun and to see what Tailwind CSS can do. Another reason is that I want to try out the [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API), knowing that it can be used to access the file in a folder just in the browser.
+## Có gì mới?
 
-## What's new?
+- Hỗ trợ giải mã ký tự tiếng Việt Unicode.
 
- - Support for decode Vietnamese Unicode characters.
-
-### Technical Stack
+### Công nghệ sử dụng
 
 - Next.JS + TailwindCSS
 - [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)
 
-## How to use
+## Hướng dẫn sử dụng
 
-1. Open [the Tool](https://messenger-json-viewer-unicode-1.vercel.app/)
-2. Click the Button and select the folder you downloaded from Facebook.
-3. Wait a few seconds, sometimes it takes one minute to load.
+1. Mở [Công cụ](https://messenger-json-viewer-unicode-1.vercel.app/)
+2. Nhấp vào nút và chọn thư mục bạn đã tải về từ Facebook.
+3. Chờ vài giây, đôi khi có thể mất một phút để tải.
 4. Tada!
 
 
