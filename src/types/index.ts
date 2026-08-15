@@ -1,64 +1,42 @@
-export type Chat = {
-  name: string;
-  dirName: string;
-  lastSent: number;
-  title: string;
-};
-
 export enum MessageType {
   Generic = 'Generic',
-  Unsubscribe = 'Unsubscribe',
-  Subscribe = 'Subscribe',
-  Call = 'Call',
   Share = 'Share',
 }
 
-export type Message = (
-  | {
-      type: MessageType.Unsubscribe | MessageType.Unsubscribe;
-      users: {
-        name: string;
-      }[];
-    }
-  | {
-      type: MessageType.Call;
-      call_duration: number;
-    }
-  | {
-      type: MessageType.Share;
-      share?: {
-        link: string;
-      };
-    }
-  | {
-      type: MessageType.Generic;
-      photos?: {
-        uri: string;
-        creation_timestamp: number;
-      }[];
-      sticker?: {
-        uri: string;
-      };
-    }
-) & {
+export interface Photo {
+  uri: string;
+  creation_timestamp?: number;
+}
+
+export interface Sticker {
+  uri: string;
+}
+
+export interface Share {
+  link?: string;
+  share_text?: string;
+}
+
+export interface Reaction {
+  reaction: string;
+  actor: string;
+}
+
+export interface Message {
   sender_name: string;
   timestamp_ms: number;
   content?: string;
-  is_unsent: boolean;
-  reactions?: {
-    reaction: string;
-    actor: string;
-  }[];
-};
+  type?: MessageType | string;
+  photos?: Photo[];
+  sticker?: Sticker;
+  share?: Share;
+  reactions?: Reaction[];
+  is_geoblocked_for_viewer?: boolean;
+  is_unsent_image_by_messenger_kid_parent?: boolean;
+}
 
-export type MessageData = {
+export interface Chatroom {
+  id: string;
+  name: string;
   messages: Message[];
-  participants: {
-    name: string;
-  }[];
-  title: string;
-  is_still_participant: boolean;
-  // TODO:
-  thread_type: string;
-  thread_path: string;
-};
+}
