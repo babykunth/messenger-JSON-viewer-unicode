@@ -159,7 +159,7 @@ const Home: NextPage = () => {
   const [inboxDir, setInboxDir] = useState<FileSystemDirectoryHandle | null>(null);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [isMembersOpen, setIsMembersOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
 
@@ -206,13 +206,13 @@ const Home: NextPage = () => {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden ${isDark ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`flex h-screen w-screen overflow-hidden ${isDark ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
       <Head>
         <title>Messenger Archive Viewer</title>
       </Head>
 
       {/* Sidebar */}
-      <aside className={`flex w-80 flex-col border-r ${isDark ? 'border-gray-700 bg-gray-800/50' : 'border-gray-200 bg-gray-100'}`}>
+      <aside className={`flex w-80 flex-col border-r ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
         <div className={`flex items-center justify-between p-4 border-b ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           <h1 className='text-lg font-bold truncate'>
             {directory ? `${directory.name}'s history` : 'Messenger Viewer'}
@@ -220,14 +220,14 @@ const Home: NextPage = () => {
           <div className='flex gap-2'>
             <button
               onClick={handleOpenFolder}
-              className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+              className={`p-1.5 rounded-lg transition-colors ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
               title='Chọn thư mục'
             >
               📁
             </button>
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              className={`p-1.5 rounded-lg transition-colors text-sm ${isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-200'}`}
+              className={`p-1.5 rounded-lg transition-colors text-sm ${isDark ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
               title='Đổi giao diện'
             >
               {isDark ? '☀️' : '🌙'}
@@ -243,8 +243,8 @@ const Home: NextPage = () => {
             onChange={(e) => setSearch(e.target.value)}
             className={`w-full px-3 py-2 text-sm rounded-lg outline-none focus:ring-2 focus:ring-blue-500 ${
               isDark
-                ? 'bg-gray-700 text-white placeholder-gray-400'
-                : 'bg-white text-gray-900 placeholder-gray-500 border border-gray-300'
+                ? 'bg-gray-800 text-white placeholder-gray-400 border border-gray-700'
+                : 'bg-gray-100 text-gray-900 placeholder-gray-500 border border-gray-200'
             }`}
           />
         </div>
@@ -273,15 +273,17 @@ const Home: NextPage = () => {
                 className={`cursor-pointer rounded-lg p-3 transition-colors ${
                   isSelected
                     ? isDark
-                      ? 'bg-gray-700 font-medium'
-                      : 'bg-blue-100 font-medium text-blue-900'
+                      ? 'bg-gray-800 text-white font-medium'
+                      : 'bg-blue-50 text-blue-600 font-semibold'
                     : isDark
-                    ? 'hover:bg-gray-800/80'
-                    : 'hover:bg-gray-200'
+                    ? 'hover:bg-gray-800/60 text-gray-300'
+                    : 'hover:bg-gray-100 text-gray-800'
                 }`}
               >
                 <p className='font-semibold truncate text-sm'>{chat.title || chat.name}</p>
-                <p className={`text-xs truncate mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{chat.dirName}</p>
+                <p className={`text-xs truncate mt-0.5 ${isSelected ? (isDark ? 'text-gray-300' : 'text-blue-500') : (isDark ? 'text-gray-400' : 'text-gray-500')}`}>
+                  {chat.dirName}
+                </p>
               </div>
             );
           })}
@@ -293,7 +295,7 @@ const Home: NextPage = () => {
         {currentMessage ? (
           <div className='flex h-full w-full'>
             <div className={`flex flex-1 flex-col overflow-hidden border-r ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <div className={`flex items-center justify-between border-b p-4 ${isDark ? 'border-gray-700' : 'border-gray-200 bg-white'}`}>
+              <div className={`flex items-center justify-between border-b p-4 ${isDark ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'}`}>
                 <div>
                   <h2 className='text-xl font-bold'>{currentMessage.title || currentMessage.name}</h2>
                   <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{currentMessage.messages.length} messages</p>
@@ -393,17 +395,17 @@ const Home: NextPage = () => {
             </div>
 
             {/* Right Info Panel */}
-            <div className={`w-80 overflow-y-auto p-4 space-y-4 border-l ${isDark ? 'border-gray-700 bg-gray-800/30' : 'border-gray-200 bg-gray-100'}`}>
-              <div className={`border rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+            <div className={`w-80 overflow-y-auto p-4 space-y-4 border-l ${isDark ? 'border-gray-700 bg-gray-900/50' : 'border-gray-200 bg-white'}`}>
+              <div className={`border rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                 <button
                   onClick={() => setIsMembersOpen(!isMembersOpen)}
-                  className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold ${isDark ? 'bg-gray-800' : 'bg-white text-gray-800'}`}
+                  className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold ${isDark ? 'bg-gray-800' : 'bg-gray-50 text-gray-800'}`}
                 >
                   <span>Thành viên</span>
                   <span>{isMembersOpen ? '▲' : '▼'}</span>
                 </button>
                 {isMembersOpen && (
-                  <div className={`p-4 space-y-2 text-sm ${isDark ? 'bg-gray-900/50' : 'bg-gray-50 text-gray-700'}`}>
+                  <div className={`p-4 space-y-2 text-sm ${isDark ? 'bg-gray-900/50' : 'bg-white text-gray-700'}`}>
                     {currentMessage.participants?.map((part: any) => (
                       <div key={part.name} className='flex items-center gap-2'>
                         <div
@@ -423,16 +425,16 @@ const Home: NextPage = () => {
               </div>
 
               {chatStatistic && (
-                <div className={`border rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-300'}`}>
+                <div className={`border rounded-lg overflow-hidden ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
                   <button
                     onClick={() => setIsStatsOpen(!isStatsOpen)}
-                    className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold ${isDark ? 'bg-gray-800' : 'bg-white text-gray-800'}`}
+                    className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold ${isDark ? 'bg-gray-800' : 'bg-gray-50 text-gray-800'}`}
                   >
                     <span>Thống kê</span>
                     <span>{isStatsOpen ? '▲' : '▼'}</span>
                   </button>
                   {isStatsOpen && (
-                    <div className={`p-4 space-y-2 text-sm ${isDark ? 'bg-gray-900/50' : 'bg-gray-50 text-gray-700'}`}>
+                    <div className={`p-4 space-y-2 text-sm ${isDark ? 'bg-gray-900/50' : 'bg-white text-gray-700'}`}>
                       <div className='flex justify-between'>
                         <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Tổng số tin nhắn:</span>
                         <span>{chatStatistic.messageCount}</span>
