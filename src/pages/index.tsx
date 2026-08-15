@@ -12,41 +12,51 @@ import {
   useChatStatistics,
   useCurrentMessage,
 } from '@/lib/utils/message';
-import { Chatroom } from '@/types';
+import { Chatroom, Message } from '@/types';
 
-// Hàm quét đệ quy tìm file (ảnh hoặc video) trong thư mục được chọn
+// Hàm lấy FileHandle thông minh
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
 ): Promise<FileSystemFileHandle | null> {
   try {
-    const fileName = uri.split('/').pop();
+    let parts = uri.split('/').filter(Boolean);
+    const fileName = parts.pop();
     if (!fileName) return null;
 
-    async function findFileRecursively(
-      dirHandle: FileSystemDirectoryHandle
-    ): Promise<FileSystemFileHandle | null> {
-      for await (const entry of (dirHandle as any).values()) {
-        if (entry.kind === 'file' && entry.name === fileName) {
-          return entry as FileSystemFileHandle;
-        }
-        if (entry.kind === 'directory') {
-          const found = await findFileRecursively(entry as FileSystemDirectoryHandle);
-          if (found) return found;
-        }
-      }
-      return null;
+    const rootName = rootDir.name.toLowerCase();
+    const firstMatchingIdx = parts.findIndex((p) => p.toLowerCase() === rootName);
+    if (firstMatchingIdx !== -1) {
+      parts = parts.slice(firstMatchingIdx + 1);
+    } else {
+      if (parts[0] === 'your_facebook_activity') parts.shift();
+      if (parts[0] === 'messages' && rootName !== 'your_facebook_activity') parts.shift();
     }
 
-    return await findFileRecursively(rootDir);
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('Lỗi khi quét file:', err);
-    return null;
+    let currentDir = rootDir;
+    for (const part of parts) {
+      try {
+        currentDir = await currentDir.getDirectoryHandle(part);
+      } catch {
+        break;
+      }
+    }
+
+    return await currentDir.getFileHandle(fileName);
+  } catch {
+    try {
+      const fileName = uri.split('/').pop();
+      if (fileName) {
+        return await rootDir.getFileHandle(fileName);
+      }
+    } catch {
+      return null;
+    }
   }
+  return null;
 }
 
-// Component hiển thị hình ảnh
+// Component FsImage với hỗ trợ Modal phóng to
 const FsImage = ({
   rootDir,
   uri,
@@ -80,7 +90,7 @@ const FsImage = ({
           setImgUrl(objectUrl);
           setError(false);
         }
-      } catch {
+      } catch (err) {
         if (isMounted) setError(true);
       }
     }
@@ -95,15 +105,15 @@ const FsImage = ({
 
   if (error) {
     return (
-      <span className='text-xs text-red-500 dark:text-red-400 block mt-1 break-all font-medium'>
-        📷 [Không tìm thấy ảnh: {uri}]
+      <span className='text-xs text-blue-600 dark:text-blue-400 underline block mt-1 break-all font-medium'>
+        📷 [Photo: {uri}]
       </span>
     );
   }
 
   if (!imgUrl) {
     return (
-      <span className='text-xs text-gray-400 dark:text-gray-500 italic block mt-1 animate-pulse'>
+      <span className='text-xs text-gray-500 dark:text-gray-400 italic block mt-1 animate-pulse'>
         📷 Đang tải ảnh...
       </span>
     );
@@ -141,81 +151,6 @@ const FsImage = ({
         </div>
       )}
     </>
-  );
-};
-
-// Component FsVideo - Phát video trực tiếp
-const FsVideo = ({
-  rootDir,
-  uri,
-}: {
-  rootDir: FileSystemDirectoryHandle | null;
-  uri: string;
-}) => {
-  const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    let objectUrl: string | null = null;
-
-    async function loadVideo() {
-      if (!rootDir || !uri) {
-        setError(true);
-        return;
-      }
-
-      try {
-        const fileHandle = await getFileHandleFromUri(rootDir, uri);
-        if (!fileHandle) throw new Error('Video not found');
-
-        const file = await fileHandle.getFile();
-        const videoBlob = new Blob([await file.arrayBuffer()], { type: 'video/mp4' });
-
-        if (isMounted) {
-          objectUrl = URL.createObjectURL(videoBlob);
-          setVideoUrl(objectUrl);
-          setError(false);
-        }
-      } catch {
-        if (isMounted) setError(true);
-      }
-    }
-
-    loadVideo();
-
-    return () => {
-      isMounted = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [rootDir, uri]);
-
-  if (error) {
-    return (
-      <div className='mt-1 p-2 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 break-all'>
-        🎥 Không tìm thấy file video: <br />
-        <span className='font-mono opacity-80'>{uri}</span>
-      </div>
-    );
-  }
-
-  if (!videoUrl) {
-    return (
-      <span className='text-xs text-gray-400 dark:text-gray-500 italic block mt-1 animate-pulse'>
-        🎥 Đang tải video...
-      </span>
-    );
-  }
-
-  return (
-    <div className='mt-2 overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700 shadow-md max-w-xs bg-black'>
-      <video
-        src={videoUrl}
-        controls
-        preload='metadata'
-        className='w-full max-h-80 object-contain'
-      />
-    </div>
   );
 };
 
@@ -276,7 +211,7 @@ const Home: NextPage = () => {
         <title>Messenger Archive Viewer</title>
       </Head>
 
-      {/* Sidebar */}
+      {/* Sidebar - Cột bên trái */}
       <aside className={`flex w-80 flex-col border-r ${isDark ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'}`}>
         <div className={`flex items-center justify-between p-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
           <h1 className='text-base font-bold truncate'>
@@ -300,6 +235,7 @@ const Home: NextPage = () => {
           </div>
         </div>
 
+        {/* Ô tìm kiếm */}
         <div className='p-3'>
           <input
             type='text'
@@ -314,6 +250,7 @@ const Home: NextPage = () => {
           />
         </div>
 
+        {/* Danh sách các cuộc trò chuyện */}
         <div className='flex-1 overflow-y-auto px-2 space-y-1'>
           {!directory && (
             <div className={`p-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -337,7 +274,9 @@ const Home: NextPage = () => {
                 onClick={() => setSelectedChatId(id)}
                 className={`cursor-pointer rounded-xl p-3 transition-colors ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-medium shadow-sm'
+                    ? isDark
+                      ? 'bg-blue-600 text-white font-medium shadow-sm'
+                      : 'bg-blue-600 text-white font-medium shadow-sm'
                     : isDark
                     ? 'hover:bg-gray-800/80 text-gray-200'
                     : 'hover:bg-gray-100 text-gray-800'
@@ -353,7 +292,7 @@ const Home: NextPage = () => {
         </div>
       </aside>
 
-      {/* Main Chat Area */}
+      {/* Main Chat Area - Khu vực khung chat giữa */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
@@ -365,6 +304,7 @@ const Home: NextPage = () => {
                 </div>
               </div>
 
+              {/* Danh sách tin nhắn */}
               <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
                 {currentMessage.messages.map((msg: any, idx: number) => {
                   const sender = decodeString(msg.sender_name);
@@ -390,12 +330,14 @@ const Home: NextPage = () => {
                             : 'bg-white text-gray-900 rounded-bl-none border border-gray-200'
                         }`}
                       >
+                        {/* Văn bản */}
                         {hasContent && (
                           <p className='whitespace-pre-wrap break-words'>
                             {decodeString(msg.content)}
                           </p>
                         )}
 
+                        {/* Hình ảnh */}
                         {hasPhotos && (
                           <div className='mt-2 flex flex-col gap-2'>
                             {msg.photos.map((p: any, pIdx: number) => (
@@ -409,25 +351,25 @@ const Home: NextPage = () => {
                           </div>
                         )}
 
-                        {/* HIỂN THỊ TRÌNH PHÁT VIDEO */}
-                        {hasVideos && (
-                          <div className='mt-2 flex flex-col gap-2'>
-                            {msg.videos.map((v: any, vIdx: number) => (
-                              <FsVideo
-                                key={vIdx}
-                                rootDir={directory}
-                                uri={v.uri}
-                              />
-                            ))}
-                          </div>
-                        )}
-
+                        {/* Sticker */}
                         {hasSticker && (
                           <div className={`mt-1 italic text-xs flex items-center gap-1 ${isMe ? 'text-yellow-200' : isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
                             <span>🎨 [Sticker: {msg.sticker.uri}]</span>
                           </div>
                         )}
 
+                        {/* Video */}
+                        {hasVideos && (
+                          <div className='mt-1 flex flex-col gap-1'>
+                            {msg.videos.map((v: any, vIdx: number) => (
+                              <span key={vIdx} className={`text-xs underline break-all font-medium ${isMe ? 'text-blue-100' : isDark ? 'text-blue-400' : 'text-blue-600'}`}>
+                                🎥 [Video: {v.uri}]
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Share link */}
                         {hasShare && (
                           <a
                             href={msg.share.link}
@@ -439,6 +381,7 @@ const Home: NextPage = () => {
                           </a>
                         )}
 
+                        {/* Tin nhắn hệ thống fallback */}
                         {!hasContent && !hasPhotos && !hasSticker && !hasVideos && !hasShare && (
                           <span className={`italic text-xs ${isMe ? 'text-blue-100' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             [Tin nhắn hệ thống]
@@ -454,8 +397,9 @@ const Home: NextPage = () => {
               </div>
             </div>
 
-            {/* Right Info Panel */}
+            {/* Right Info Panel - Cột thông tin bên phải */}
             <div className={`w-80 overflow-y-auto p-4 space-y-4 border-l ${isDark ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'}`}>
+              {/* Box Thành viên */}
               <div className={`border rounded-xl overflow-hidden shadow-sm ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
                 <button
                   onClick={() => setIsMembersOpen(!isMembersOpen)}
@@ -486,6 +430,7 @@ const Home: NextPage = () => {
                 )}
               </div>
 
+              {/* Box Thống kê */}
               {chatStatistic && (
                 <div className={`border rounded-xl overflow-hidden shadow-sm ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
                   <button
