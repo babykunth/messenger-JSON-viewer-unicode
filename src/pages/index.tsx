@@ -1,552 +1,210 @@
-import {
-  InformationCircleIcon,
-  MoonIcon,
-  RefreshIcon,
-  SunIcon,
-} from '@heroicons/react/outline';
-import cx from 'clsx';
-import randomColor from 'randomcolor';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
+import type { NextPage } from 'next';
+import Head from 'next/head';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
+import randomColor from 'randomcolor';
 
-import useTheme from '@/lib/hooks/useTheme';
-import useThemeColor from '@/lib/hooks/useThemeColor';
-import useToggle from '@/lib/hooks/useToggle';
-import useWindowOverlay from '@/lib/hooks/useWindowOverlay';
+import Collapsible from '@/components/Collapsible';
+import Messages from '@/components/Messages';
+import SearchBar from '@/components/SearchBar';
+import SidebarChat from '@/components/SidebarChat';
+import SidebarChatSkeleton from '@/components/SidebarChatSkeleton';
+import ToggleTheme from '@/components/ToggleTheme';
 import { findInboxFolder } from '@/lib/utils/file';
 import {
-  decodeString,
   getMyselfName,
   loadChats,
   useChatStatistics,
   useCurrentMessage,
-  useGroupedMessages,
 } from '@/lib/utils/message';
+import { Chatroom } from '@/types';
 
-import Collapsible from '@/components/Collapsible';
-import MessageComponent from '@/components/Message';
-import OnboardingCarousel from '@/components/OnboardingCarousel';
-import SearchInput from '@/components/SearchInput';
-
-function StartScreen({ openDirPicker }: { openDirPicker: () => void }) {
-  const contents = [
-    <div
-      key='step-1'
-      className='flex w-full flex-col items-center justify-center'
-    >
-      <img src='/ios/100.png' alt='logo' width={100} height={100} />
-      <h1 className='text-center text-2xl font-bold'>
-        Welcome to Facebook Messenger exported JSON viewer
-      </h1>
-      <p className='mt-5'>Click next to continue</p>
-    </div>,
-    <div
-      key='step-2'
-      className='flex w-full flex-col items-center justify-center'
-    >
-      <img
-        src='/images/step1.png'
-        className='mb-5 w-full max-w-5xl'
-        alt='step-1'
-      />
-      <h2 className='text-center text-xl font-bold'>
-        Step 1: Export the messenger data as JSON from Facebook. Go to{' '}
-        <a
-          href='https://www.facebook.com/dyi'
-          target='_blank'
-          rel='noreferrer'
-          className='underline'
-        >
-          Download Your Information
-        </a>{' '}
-        page.
-      </h2>
-    </div>,
-    <div
-      key='step-3'
-      className='flex w-full flex-col items-center justify-center'
-    >
-      <img
-        src='/images/step2.png'
-        className='mb-5 w-full max-w-5xl'
-        alt='step-2'
-      />
-      <h2 className='text-center text-xl font-bold'>
-        Step 2: Make sure your folder looks like this.
-      </h2>
-    </div>,
-    <div key='step-3'>
-      <button
-        className='rounded px-4 py-2 ring-1 hover:bg-blue-500 hover:text-white'
-        onClick={openDirPicker}
-      >
-        Open Folder
-      </button>
-    </div>,
-  ];
-
-  return (
-    <OnboardingCarousel className='flex h-full flex-col items-center justify-center overflow-hidden'>
-      {contents}
-    </OnboardingCarousel>
-  );
-}
-
-const scrollPositionStore = new Map();
-
-export default function HomePage() {
-  const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(
-    null
-  );
-  const [inboxDir, setInboxDir] = useState<FileSystemDirectoryHandle | null>(
-    null
-  );
+const Home: NextPage = () => {
+  const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(null);
+  const [inboxDir, setInboxDir] = useState<FileSystemDirectoryHandle | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [infoPanelOpen, , toggleInfoPanel] = useToggle(false);
-  const [chatMembersInfoExpanded, , toggleChatMembersInfo] = useToggle(false);
-  const [messageCountExpanded, , toggleMessageCount] = useToggle(false);
-  const [chatInfoExpanded, , toggleChatInfo] = useToggle(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [isMembersOpen, setIsMembersOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
 
-  const [folderName, setFolderName] = useState<string | null>(null);
-  const currentMessage = useCurrentMessage(folderName);
-  const groupedMessages = useGroupedMessages(currentMessage);
-  const chatStatistic = useChatStatistics(currentMessage);
-  const { windowControlsOverlayEnable, windowControlsOverlayRect } =
-    useWindowOverlay();
-  const searchbarWidth = useMemo(() => {
-    if (windowControlsOverlayRect?.width) {
-      return windowControlsOverlayRect?.width * 0.6;
-    } else {
-      return 300;
-    }
-  }, [windowControlsOverlayRect]);
-
-  const messageGroupRef = useRef<VirtuosoHandle>(null);
-
-  useEffect(() => {
-    const position = scrollPositionStore.get(folderName!);
-
-    const targetIndex = position || groupedMessages.length - 1;
-
-    messageGroupRef.current?.scrollToIndex({
-      index: targetIndex,
-      align: 'end',
-    });
-  }, [folderName, groupedMessages]);
-
-  const { dark, toggleTheme, theme } = useTheme();
-  useThemeColor({
-    dark: '#121212',
-    light: '#ffffff',
-  });
-
-  const { data } = useSWR(
-    () => inboxDir?.name && ['chats', inboxDir?.name],
-    () => loadChats(inboxDir)
-  );
-  const { data: myName = null } = useSWR(
-    () => (directory ? 'myName' : false),
-    () => {
-      return getMyselfName(directory!);
-    }
-  );
-
-  const chats = useMemo(() => {
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    return data
-      .sort((a, b) => b.lastSent - a.lastSent)
-      .filter((c) => c.title.includes(search) || c.dirName.includes(search));
-  }, [data, search]);
-
-  const openDirPicker = async () => {
+  const handleOpenFolder = async () => {
     try {
-      const directoryHandle = await window.showDirectoryPicker();
-
-      const inbox = await findInboxFolder(directoryHandle);
-
-      if (inbox) {
+      // @ts-ignore - File System Access API
+      const handle = await window.showDirectoryPicker();
+      if (handle) {
+        setDirectory(handle);
+        const inbox = await findInboxFolder(handle);
         setInboxDir(inbox);
-        setDirectory(directoryHandle);
-      } else {
-        window.alert('This is not a valid Messenger archive folder.');
       }
-      // eslint-disable-next-line no-empty
-    } catch {}
+    } catch (err) {
+      console.error('Lỗi khi chọn thư mục:', err);
+    }
   };
 
-  if (!data || data.length === 0) {
-    return <StartScreen openDirPicker={openDirPicker} />;
-  } else {
-    return (
-      <div
-        className='flex h-full'
-        style={{
-          paddingTop: windowControlsOverlayRect?.height ?? 0,
-        }}
-      >
-        {windowControlsOverlayEnable && (
-          <div
-            className='fixed z-50 flex items-center justify-center'
-            style={
-              {
-                width: windowControlsOverlayRect?.width || 0,
-                height: windowControlsOverlayRect?.height || 0,
-                top: windowControlsOverlayRect?.top || 0,
-                left: windowControlsOverlayRect?.left || 0,
-                WebkitAppRegion: 'drag',
-              } as any
-            }
-          >
-            <div className='w-full px-4' style={{ maxWidth: searchbarWidth }}>
-              <SearchInput
-                className='rounded-sm py-0.5 px-4'
-                style={
-                  {
-                    WebkitAppRegion: 'no-drag',
-                  } as any
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder='Search for user...'
-              />
-            </div>
+  const { data: chats, isValidating: isLoadingChats } = useSWR<Chatroom[]>(
+    () => (inboxDir?.name ? ['chats', inboxDir.name] : null),
+    () => loadChats(inboxDir)
+  );
+
+  const { data: myName = null } = useSWR(
+    () => (directory ? ['myName', directory.name] : null),
+    () => getMyselfName(directory)
+  );
+
+  const filteredChats = useMemo(() => {
+    if (!chats) return [];
+    const searchLower = search.toLowerCase();
+    return chats
+      .filter(
+        (c) =>
+          c.title?.toLowerCase().includes(searchLower) ||
+          c.dirName?.toLowerCase().includes(searchLower) ||
+          c.name?.toLowerCase().includes(searchLower)
+      )
+      .sort((a, b) => b.lastSent - a.lastSent);
+  }, [chats, search]);
+
+  const currentMessage = useCurrentMessage(chats || null, selectedChatId);
+  const chatStatistic = useChatStatistics(currentMessage);
+
+  return (
+    <div className={`flex h-screen w-screen overflow-hidden ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
+      <Head>
+        <title>Messenger Archive Viewer</title>
+      </Head>
+
+      {/* Cột bên trái: Sidebar */}
+      <aside className='flex w-80 flex-col border-r border-gray-700 bg-gray-800/50'>
+        <div className='flex items-center justify-between p-4 border-b border-gray-700'>
+          <h1 className='text-lg font-bold truncate'>
+            {directory ? `${directory.name}'s chat history` : 'Messenger Viewer'}
+          </h1>
+          <div className='flex gap-2'>
+            <button
+              onClick={handleOpenFolder}
+              className='p-1.5 hover:bg-gray-700 rounded-lg transition-colors'
+              title='Chọn thư mục'
+            >
+              📁
+            </button>
+            <ToggleTheme theme={theme} setTheme={setTheme} />
           </div>
-        )}
+        </div>
 
-        {/* Sidebar */}
-        <div
-          className='flex h-full max-h-full w-full flex-col border-r border-solid dark:border-gray-600'
-          style={{ maxWidth: 350 }}
-        >
-          <div
-            className={cx(
-              'flex flex-col items-start justify-center border-b border-solid px-4 py-4 dark:border-gray-600',
-              {
-                'border-t': windowControlsOverlayEnable,
-              }
-            )}
-          >
-            <div className='flex w-full items-center justify-between'>
-              <h3 className='select-none text-lg font-semibold'>
-                {myName}&#39;s chat history
-              </h3>
+        <div className='p-3'>
+          <SearchBar search={search} setSearch={setSearch} />
+        </div>
 
-              <div className='flex gap-2'>
-                <button
-                  className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
-                  onClick={toggleTheme}
-                  title='Toggle Theme'
-                >
-                  {dark ? <SunIcon width={18} /> : <MoonIcon width={18} />}
-                </button>
+        <div className='flex-1 overflow-y-auto px-2 space-y-1'>
+          {!directory && (
+            <div className='p-4 text-center text-sm text-gray-400'>
+              Vui lòng nhấn vào biểu tượng thư mục 📁 để tải dữ liệu Messenger.
+            </div>
+          )}
 
-                <button
-                  className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
-                  title='Start Over'
-                  onClick={() => {
-                    setDirectory(null);
-                    setInboxDir(null);
-                    setFolderName(null);
-                  }}
-                >
-                  <RefreshIcon width={18} />
-                </button>
+          {isLoadingChats && <SidebarChatSkeleton />}
+
+          {filteredChats.map((chat) => {
+            const id = chat.id || chat.dirName;
+            const isSelected = selectedChatId === id;
+
+            return (
+              <div
+                key={id}
+                onClick={() => setSelectedChatId(id)}
+                className={`cursor-pointer rounded-lg p-3 transition-colors ${
+                  isSelected ? 'bg-gray-700 font-medium' : 'hover:bg-gray-800/80'
+                }`}
+              >
+                <SidebarChat chat={chat} />
+              </div>
+            );
+          })}
+        </div>
+      </aside>
+
+      {/* Cột bên phải: Nội dung tin nhắn */}
+      <main className='flex flex-1 flex-col overflow-hidden'>
+        {currentMessage ? (
+          <div className='flex h-full w-full'>
+            <div className='flex flex-1 flex-col overflow-hidden border-r border-gray-700'>
+              <div className='flex items-center justify-between border-b border-gray-700 p-4'>
+                <div>
+                  <h2 className='text-xl font-bold'>{currentMessage.title || currentMessage.name}</h2>
+                  <p className='text-xs text-gray-400'>{currentMessage.messages.length} messages</p>
+                </div>
+              </div>
+
+              <div className='flex-1 overflow-y-auto p-4'>
+                <Messages messages={currentMessage.messages} myName={myName} />
               </div>
             </div>
 
-            {!windowControlsOverlayEnable && (
-              <>
-                <div className='block h-4 w-full' />
-
-                <SearchInput
-                  className='rounded-lg py-2 px-4'
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder='Search for user...'
-                />
-              </>
-            )}
-          </div>
-
-          {chats.length > 0 && (
-            <Virtuoso
-              className='h-full overflow-y-auto overflow-x-hidden'
-              totalCount={chats.length}
-              atBottomThreshold={20}
-              itemContent={(index) => {
-                const chat = chats[index];
-                return (
-                  <div
-                    className='max-w-full cursor-default px-1 py-1.5'
-                    key={chat.dirName}
-                  >
-                    <div
-                      className={cx(
-                        'flex items-center gap-2 rounded-lg py-3 px-5 hover:bg-gray-100 hover:dark:bg-gray-600',
-                        {
-                          'bg-gray-100 dark:bg-gray-600':
-                            folderName === chat.dirName,
-                        }
-                      )}
-                      onClick={() => {
-                        setFolderName(chat.dirName);
-                      }}
-                    >
+            {/* Panel thông tin bên phải */}
+            <div className='w-80 overflow-y-auto p-4 space-y-4 border-l border-gray-700 bg-gray-800/30'>
+              <Collapsible
+                title='Thành viên'
+                isOpen={isMembersOpen}
+                onToggle={() => setIsMembersOpen(!isMembersOpen)}
+              >
+                <div className='flex flex-col gap-2 py-2'>
+                  {currentMessage.participants?.map((part) => (
+                    <div key={part.name} className='flex items-center gap-2'>
                       <div
-                        className='flex h-9 w-9 select-none items-center justify-center rounded-full text-xl text-white'
+                        className='h-3 w-3 rounded-full'
                         style={{
-                          minWidth: '2.25rem',
-                          minHeight: '2.25rem',
                           backgroundColor: randomColor({
-                            luminosity: 'dark',
-                            seed: chat.dirName,
+                            seed: part.name,
+                            luminosity: theme,
                           }),
                         }}
-                      >
-                        {chat.title[0]}
-                      </div>
-
-                      <div className='flex max-w-full flex-col'>
-                        <span className='mb-1 max-w-full overflow-hidden text-ellipsis whitespace-nowrap'>
-                          {chat.title}
-                        </span>
-                        <small className='max-w-full overflow-hidden text-ellipsis text-gray-400'>
-                          {chat.dirName}
-                        </small>
-                      </div>
-                    </div>
-                  </div>
-                );
-              }}
-            />
-          )}
-
-          {chats.length === 0 && (
-            <div className='flex h-full w-full select-none justify-center'>
-              <div className='pt-6 text-gray-600 dark:text-gray-500'>
-                No results
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Message boxes */}
-        <div className='flex flex-1 flex-col'>
-          <div
-            className={cx(
-              'flex w-full items-center justify-between border-b py-4 px-4 dark:border-gray-600',
-              {
-                'border-t': windowControlsOverlayEnable,
-              }
-            )}
-          >
-            <h3 className='select-none text-lg font-semibold'>
-              {currentMessage
-                ? decodeString(currentMessage.title)
-                : 'Please select chat to view'}
-            </h3>
-
-            <button
-              className='rounded-full border-none p-2 hover:bg-gray-100 hover:dark:bg-gray-600'
-              onClick={toggleInfoPanel}
-            >
-              <InformationCircleIcon width={18} />
-            </button>
-          </div>
-
-          <Virtuoso
-            className='flex w-full flex-1 flex-col gap-5 overflow-hidden overflow-y-auto break-all'
-            ref={messageGroupRef}
-            totalCount={groupedMessages.length}
-            atBottomThreshold={40}
-            rangeChanged={(range) => {
-              if (range.endIndex && range.startIndex) {
-                scrollPositionStore.set(folderName!, range.endIndex);
-              }
-            }}
-            itemContent={(groupIdx) => {
-              const messages = groupedMessages[groupIdx];
-
-              const sectionSenderName = decodeString(messages[0].sender_name);
-              const color = randomColor({
-                seed: sectionSenderName,
-                luminosity: theme,
-              });
-              const isMe = sectionSenderName === myName;
-
-              return (
-                <div
-                  className={cx('flex gap-2 px-4', {
-                    'flex-row-reverse': isMe,
-                    'pt-4': groupIdx === 0,
-                    'pb-4': groupIdx === groupedMessages.length - 1,
-                  })}
-                  key={groupIdx}
-                >
-                  {/* Avatar */}
-                  {!isMe && (
-                    <div className='flex flex-col items-center justify-end'>
-                      <div
-                        style={{
-                          backgroundColor: color,
-                        }}
-                        className='h-8 w-8 rounded-full'
                       />
-                    </div>
-                  )}
-
-                  {/* Messages */}
-                  <div
-                    className='item flex flex-col justify-between gap-0.5'
-                    style={{
-                      maxWidth: '65%',
-                    }}
-                  >
-                    {!isMe && (
-                      <small className='select-none pl-2 text-gray-400'>
-                        {sectionSenderName}
-                      </small>
-                    )}
-
-                    {messages.map((message, i) => {
-                      const isFirst = i === 0;
-                      const isLast = i === messages.length - 1;
-
-                      return (
-                        <MessageComponent
-                          rootDir={directory!}
-                          message={message}
-                          key={`message_${message.sender_name}_${groupIdx}_${i}`}
-                          isFirst={isFirst}
-                          isLast={isLast}
-                          isMe={isMe}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            }}
-          />
-        </div>
-
-        {/* Info Panel */}
-        {infoPanelOpen && currentMessage && (
-          <div
-            className={cx(
-              'flex h-full w-full flex-col overflow-y-auto border-l py-4 px-4 dark:border-gray-600',
-              {
-                'border-t': windowControlsOverlayEnable,
-              }
-            )}
-            style={{ maxWidth: 350 }}
-          >
-            <h3 className='mb-4 select-none text-center text-lg font-semibold'>
-              {decodeString(currentMessage.title)}
-            </h3>
-
-            <Collapsible
-              title='Chat Members'
-              containerClassName='flex flex-col gap-4 py-4 px-5'
-              isExpanded={chatMembersInfoExpanded}
-              onToggle={toggleChatMembersInfo}
-            >
-              {currentMessage.participants.map((part) => {
-                const color = randomColor({
-                  seed: part.name,
-                  luminosity: theme,
-                });
-
-                return (
-                  <div className='flex gap-2' key={part.name}>
-                    <div
-                      style={{
-                        backgroundColor: color,
-                      }}
-                      className='h-6 w-6 rounded-full'
-                    />
-
-                    <span className='text-base'>{decodeString(part.name)}</span>
-                  </div>
-                );
-              })}
-            </Collapsible>
-
-            {chatStatistic && (
-              <Collapsible
-                title='Chat Information'
-                containerClassName='flex flex-col gap-4 py-4 px-5'
-                isExpanded={chatInfoExpanded}
-                onToggle={toggleChatInfo}
-              >
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Messages Count</span>
-
-                  <span className='text-right text-base text-gray-500'>
-                    {currentMessage.messages.length}
-                  </span>
-                </div>
-
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Members Count</span>
-
-                  <span className='text-base text-gray-500'>
-                    {currentMessage.participants.length}
-                  </span>
-                </div>
-
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Created At</span>
-
-                  <span className='text-right text-base text-gray-500'>
-                    {new Date(chatStatistic.createdAt).toLocaleString()}
-                  </span>
-                </div>
-              </Collapsible>
-            )}
-
-            {chatStatistic && (
-              <Collapsible
-                title='Messages Count'
-                isExpanded={messageCountExpanded}
-                onToggle={toggleMessageCount}
-                containerClassName='flex flex-col gap-4 py-4 px-5'
-              >
-                {Object.entries(chatStatistic.countInfo)
-                  .sort(([, aCount], [, bCount]) => bCount - aCount)
-                  .map(([senderName, count]) => (
-                    <div key={senderName} className='flex justify-between'>
-                      <span className='text-base'>
-                        {decodeString(senderName)}
-                      </span>
-
-                      <span className='ml-2 text-base text-gray-500'>
-                        (
-                        {(
-                          (count / currentMessage.messages.length) *
-                          100
-                        ).toFixed(1)}
-                        % ) {count}
-                      </span>
+                      <span className='text-sm'>{part.name}</span>
                     </div>
                   ))}
-
-                <div className='flex justify-between'>
-                  <span className='text-base font-medium'>Total</span>
-
-                  <span className='ml-2 text-base text-gray-500'>
-                    {currentMessage.messages.length}
-                  </span>
                 </div>
               </Collapsible>
-            )}
+
+              {chatStatistic && (
+                <Collapsible
+                  title='Thống kê'
+                  isOpen={isStatsOpen}
+                  onToggle={() => setIsStatsOpen(!isStatsOpen)}
+                >
+                  <div className='flex flex-col gap-2 py-2 text-sm'>
+                    <div className='flex justify-between'>
+                      <span className='text-gray-400'>Tổng số tin nhắn:</span>
+                      <span>{chatStatistic.messageCount}</span>
+                    </div>
+                    {chatStatistic.createdAt > 0 && (
+                      <div className='flex justify-between'>
+                        <span className='text-gray-400'>Ngày bắt đầu:</span>
+                        <span>{new Date(chatStatistic.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    )}
+                    <div className='mt-2 font-semibold text-gray-300'>Top gửi tin:</div>
+                    {Object.entries(chatStatistic.countInfo || {})
+                      .sort(([, a], [, b]) => b - a)
+                      .map(([name, count]) => (
+                        <div key={name} className='flex justify-between text-xs'>
+                          <span className='truncate w-32'>{name}</span>
+                          <span className='text-gray-400'>{count}</span>
+                        </div>
+                      ))}
+                  </div>
+                </Collapsible>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className='flex h-full items-center justify-center text-gray-500'>
+            Please select chat to view
           </div>
         )}
-      </div>
-    );
-  }
-}
+      </main>
+    </div>
+  );
+};
+
+export default Home;
