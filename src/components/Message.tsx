@@ -6,23 +6,10 @@ import useSWR from 'swr';
 
 import useToggle from '@/lib/hooks/useToggle';
 import { getFileHandleRecursively } from '@/lib/utils/file';
-import { useGroupedActorsByReaction } from '@/lib/utils/message';
+import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
 import { Message } from '../types';
-
-function decodeText(str?: string): string {
-  if (!str) return '';
-  try {
-    const bytes = new Uint8Array(str.length);
-    for (let i = 0; i < str.length; i++) {
-      bytes[i] = str.charCodeAt(i) & 0xff;
-    }
-    return new TextDecoder('utf-8').decode(bytes);
-  } catch {
-    return str;
-  }
-}
 
 function ReactionButton({
   reaction,
@@ -40,12 +27,12 @@ function ReactionButton({
       padding={10}
       content={() => (
         <div className='rounded bg-gray-600 py-0.5 px-1 text-white'>
-          {actors.map((actor) => decodeText(actor)).join(', ')}
+          {actors.map((actor) => decodeString(actor)).join(', ')}
         </div>
       )}
       onClickOutside={() => setPopoverOpen(false)}
     >
-      <span onClick={togglePopover}>{decodeText(reaction)}</span>
+      <span onClick={togglePopover}>{decodeString(reaction)}</span>
     </Popover>
   );
 }
@@ -139,7 +126,7 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const content = decodeText(message.content);
+  const content = decodeString(message.content);
   const rawMsg = message as any;
 
   const { data: imageURIs } = useSWR(
@@ -231,7 +218,7 @@ export default function MessageComponent({
           rel='noreferrer'
           className='underline'
         >
-          {content || decodeText(rawMsg.share.share_text)}
+          {content || decodeString(rawMsg.share.share_text)}
         </a>
       </BaseMessage>
     );
