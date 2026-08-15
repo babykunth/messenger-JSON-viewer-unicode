@@ -23,7 +23,6 @@ export function getMyselfName(
   if (!messagesOrDir) return null;
 
   if (!Array.isArray(messagesOrDir)) {
-    // Nếu truyền vào FileSystemDirectoryHandle, trả về tên thư mục hoặc null
     return messagesOrDir.name || null;
   }
 
@@ -98,7 +97,7 @@ export function useGroupedMessages(messages: Message[] | Chatroom | null) {
   return grouped;
 }
 
-// Hook tính toán thống kê cuộc trò chuyện
+// Hook tính toán thống kê cuộc trò chuyện (đã bổ sung trường createdAt)
 export function useChatStatistics(chat: Chatroom | Message[] | null) {
   const messages = Array.isArray(chat) ? chat : chat?.messages || [];
 
@@ -116,12 +115,16 @@ export function useChatStatistics(chat: Chatroom | Message[] | null) {
         }
       }
 
+      const firstTimestamp = messages[0]?.timestamp_ms || 0;
+      const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
+
       return {
         messageCount,
         participantCount: participants.size,
         participants: Array.from(participants),
-        firstTimestamp: messages[0]?.timestamp_ms,
-        lastTimestamp: messages[messages.length - 1]?.timestamp_ms,
+        firstTimestamp,
+        lastTimestamp,
+        createdAt: firstTimestamp,
       };
     }
   );
