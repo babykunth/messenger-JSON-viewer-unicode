@@ -14,47 +14,39 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom } from '@/types';
 
-// Hàm lấy FileHandle linh hoạt cho cả Ảnh và Video
+// Hàm tìm kiếm đệ quy file trong thư mục dựa vào tên file
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
 ): Promise<FileSystemFileHandle | null> {
   try {
-    let parts = uri.split('/').filter(Boolean);
-    const fileName = parts.pop();
+    const fileName = uri.split('/').pop();
     if (!fileName) return null;
 
-    const rootName = rootDir.name.toLowerCase();
-    const firstMatchingIdx = parts.findIndex((p) => p.toLowerCase() === rootName);
-
-    if (firstMatchingIdx !== -1) {
-      parts = parts.slice(firstMatchingIdx + 1);
-    } else {
-      if (parts[0]?.toLowerCase() === 'your_facebook_activity') parts.shift();
-      if (parts[0]?.toLowerCase() === 'messages' && rootName !== 'your_facebook_activity') parts.shift();
-    }
-
-    let currentDir = rootDir;
-    for (const part of parts) {
-      try {
-        currentDir = await currentDir.getDirectoryHandle(part);
-      } catch {
-        break;
+    async function findFileRecursively(
+      dirHandle: FileSystemDirectoryHandle
+    ): Promise<FileSystemFileHandle | null> {
+      for await (const entry of (dirHandle as any).values()) {
+        if (entry.kind === 'file' && entry.name === fileName) {
+          return entry as FileSystemFileHandle;
+        }
+        if (entry.kind === 'directory') {
+          const found = await findFileRecursively(entry as FileSystemDirectoryHandle);
+          if (found) return found;
+        }
       }
+      return null;
     }
 
-    try {
-      return await currentDir.getFileHandle(fileName);
-    } catch {
-      // Fallback nếu thư mục bị lồng quá sâu
-      return await rootDir.getFileHandle(fileName);
-    }
-  } catch {
+    return await findFileRecursively(rootDir);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('Lỗi khi quét đệ quy file:', err);
     return null;
   }
 }
 
-// Component FsImage
+// Component hiển thị hình ảnh
 const FsImage = ({
   rootDir,
   uri,
@@ -152,7 +144,7 @@ const FsImage = ({
   );
 };
 
-// Component FsVideo - Phát video trực tiếp
+// Component FsVideo - Trình phát video trực tiếp
 const FsVideo = ({
   rootDir,
   uri,
@@ -417,7 +409,7 @@ const Home: NextPage = () => {
                           </div>
                         )}
 
-                        {/* ĐÃ SỬA: Dùng FsVideo để hiển thị player */}
+                        {/* Gọi component FsVideo để phát video */}
                         {hasVideos && (
                           <div className='mt-2 flex flex-col gap-2'>
                             {msg.videos.map((v: any, vIdx: number) => (
