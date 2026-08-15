@@ -130,11 +130,11 @@ export default function MessageComponent({
 
   const { data: imageURIs } = useSWR(
     () =>
-      message.type === MessageType.Generic && message.photos
+      message.photos
         ? `/message/photo/${message.timestamp_ms}`
         : null,
     async () => {
-      if (!(message.type === MessageType.Generic && message.photos)) {
+      if (!message.photos) {
         return [];
       }
 
@@ -157,18 +157,12 @@ export default function MessageComponent({
     }
   );
 
-  const renderDefault = () => (
-    <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
-      {content}
-    </BaseMessage>
-  );
-
-  // 1. Xử lý ảnh
+  // 1. Xử lý hiển thị ảnh
   if (message.photos) {
     return (
       <SRLWrapper>
         <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
-          {imageURIs
+          {imageURIs && imageURIs.length > 0
             ? imageURIs.map((uri) => (
                 <a href={uri} key={uri}>
                   <img src={uri} alt={uri} />
@@ -180,7 +174,7 @@ export default function MessageComponent({
     );
   }
 
-  // 2. Xử lý Sticker
+  // 2. Xử lý hiển thị Sticker
   if (message.sticker) {
     return (
       <BaseMessage
@@ -198,7 +192,7 @@ export default function MessageComponent({
     );
   }
 
-  // 3. Xử lý Link Chia sẻ
+  // 3. Xử lý hiển thị Link Chia sẻ
   if (message.share?.link) {
     return (
       <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
@@ -214,6 +208,10 @@ export default function MessageComponent({
     );
   }
 
-  // 4. Mặc định hiển thị văn bản tin nhắn
-  return renderDefault();
+  // 4. Mặc định hiển thị tin nhắn văn bản thông thường (Sửa triệt để lỗi "Not implemented")
+  return (
+    <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
+      {content}
+    </BaseMessage>
+  );
 }
