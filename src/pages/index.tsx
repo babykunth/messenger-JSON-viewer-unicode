@@ -26,9 +26,8 @@ async function findFileRecursively(
     // Thử lấy file trực tiếp ở thư mục hiện tại
     return await dirHandle.getFileHandle(targetFileName);
   } catch {
-    // Nếu không có, duyệt qua tất cả các thư mục con
-    // @ts-expect-error - Async Iterator File System Access API
-    for await (const entry of dirHandle.values()) {
+    // Nếu không có, duyệt qua tất cả các thư mục con bằng ép kiểu (dirHandle as any)
+    for await (const entry of (dirHandle as any).values()) {
       if (entry.kind === 'directory') {
         const found = await findFileRecursively(entry, targetFileName, maxDepth - 1);
         if (found) return found;
@@ -38,7 +37,7 @@ async function findFileRecursively(
   return null;
 }
 
-// Component FsImage với logic tìm kiếm đệ quy
+// Component FsImage hiển thị ảnh trực tiếp từ thư mục
 const FsImage = ({
   rootDir,
   uri,
@@ -62,11 +61,9 @@ const FsImage = ({
       }
 
       try {
-        // Lấy tên file gốc (VD: 1540291384260785.jpg)
         const fileName = uri.split('/').pop();
         if (!fileName) throw new Error('Invalid file name');
 
-        // Tìm file trong cây thư mục được chọn
         const fileHandle = await findFileRecursively(rootDir, fileName);
 
         if (!fileHandle) {
