@@ -9,7 +9,7 @@ import { getFileHandleRecursively } from '@/lib/utils/file';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
-import { Message } from '../types';
+import { Message, Photo } from '../types';
 
 function ReactionButton({
   reaction,
@@ -127,20 +127,19 @@ export default function MessageComponent({
   rootDir: FileSystemDirectoryHandle;
 }) {
   const content = decodeString(message.content);
-  const rawMsg = message as any;
 
   const { data: imageURIs } = useSWR(
     () =>
-      rawMsg.photos
+      message.photos
         ? `/message/photo/${message.timestamp_ms}`
         : null,
     async () => {
-      if (!rawMsg.photos) {
+      if (!message.photos) {
         return [];
       }
 
       const images = await Promise.all(
-        rawMsg.photos.map(async (photo: any) => {
+        message.photos.map(async (photo: Photo) => {
           const uri = photo.uri.replace(/^messages\//, '');
           const fileHandle = await getFileHandleRecursively(rootDir, uri);
           if (!fileHandle) {
@@ -166,7 +165,7 @@ export default function MessageComponent({
     </BaseMessage>
   );
 
-  if (rawMsg.photos) {
+  if (message.photos) {
     return (
       <SRLWrapper>
         <BaseMessage
@@ -187,7 +186,7 @@ export default function MessageComponent({
     );
   }
 
-  if (rawMsg.sticker) {
+  if (message.sticker) {
     return (
       <BaseMessage
         isFirst={isFirst}
@@ -198,13 +197,13 @@ export default function MessageComponent({
       >
         <FsImage
           root={rootDir}
-          path={rawMsg.sticker.uri.replace(/^messages\//, '')}
+          path={message.sticker.uri.replace(/^messages\//, '')}
         />
       </BaseMessage>
     );
   }
 
-  if (rawMsg.share?.link) {
+  if (message.share?.link) {
     return (
       <BaseMessage
         isFirst={isFirst}
@@ -213,12 +212,12 @@ export default function MessageComponent({
         message={message}
       >
         <a
-          href={rawMsg.share.link}
+          href={message.share.link}
           target='_blank'
           rel='noreferrer'
           className='underline'
         >
-          {content || decodeString(rawMsg.share.share_text)}
+          {content || decodeString(message.share.share_text)}
         </a>
       </BaseMessage>
     );
