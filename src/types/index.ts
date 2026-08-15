@@ -38,5 +38,8 @@ export interface Message {
 export interface Chatroom {
   id: string;
   name: string;
+  title: string;
+  dirName: string;
+  lastSent: number;
   messages: Message[];
 }
