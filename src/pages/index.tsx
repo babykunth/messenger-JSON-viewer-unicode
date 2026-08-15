@@ -14,29 +14,40 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
-// Hàm xử lý lấy file handle từ chuỗi đường dẫn URI
+// Hàm xử lý lấy FileHandle thông minh, tự cắt prefix trùng lặp
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
 ): Promise<FileSystemFileHandle | null> {
   try {
-    const parts = uri.split('/').filter(Boolean);
+    // Tách các thành phần trong đường dẫn
+    let parts = uri.split('/').filter(Boolean);
     const fileName = parts.pop();
-
     if (!fileName) return null;
 
-    let currentDir = rootDir;
+    // Chuẩn hóa: Nếu rootDir đã là 'messages' hoặc 'inbox', cắt bỏ các phần tiền tố tương ứng
+    const rootName = rootDir.name.toLowerCase();
+    const firstMatchingIdx = parts.findIndex((p) => p.toLowerCase() === rootName);
+    if (firstMatchingIdx !== -1) {
+      parts = parts.slice(firstMatchingIdx + 1);
+    } else {
+      // Loại bỏ prefix thừa nếu rootDir nằm sâu bên trong
+      if (parts[0] === 'your_facebook_activity') parts.shift();
+      if (parts[0] === 'messages' && rootName !== 'your_facebook_activity') parts.shift();
+    }
 
+    let currentDir = rootDir;
     for (const part of parts) {
       try {
         currentDir = await currentDir.getDirectoryHandle(part);
       } catch {
-        break;
+        break; // Nếu không vào được thư mục con, chuyển qua dùng phương án dự phòng
       }
     }
 
     return await currentDir.getFileHandle(fileName);
   } catch {
+    // Phương án dự phòng: Tìm trực tiếp theo tên file ở thư mục hiện tại
     try {
       const fileName = uri.split('/').pop();
       if (fileName) {
