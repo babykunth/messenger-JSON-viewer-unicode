@@ -126,6 +126,7 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
+  // Lấy nội dung gốc và giải mã UTF-8 chuẩn tiếng Việt
   const rawContent = message.content || message.share?.share_text || '';
   const content = decodeString(rawContent);
 
@@ -143,11 +144,9 @@ export default function MessageComponent({
         message.photos.map(async (photo) => {
           const uri = photo.uri.replace(/^messages\//, '');
           const fileHandle = await getFileHandleRecursively(rootDir, uri);
-
           if (!fileHandle) {
             return null;
           }
-
           const file = await fileHandle.getFile();
           const url = URL.createObjectURL(file);
           return url;
@@ -158,11 +157,16 @@ export default function MessageComponent({
     }
   );
 
-  // 1. Hiển thị ảnh
+  // 1. Tin nhắn dạng ảnh
   if (message.photos) {
     return (
       <SRLWrapper>
-        <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
+        <BaseMessage
+          isFirst={isFirst}
+          isLast={isLast}
+          isMe={isMe}
+          message={message}
+        >
           {imageURIs && imageURIs.length > 0
             ? imageURIs.map((uri) => (
                 <a href={uri} key={uri}>
@@ -175,7 +179,7 @@ export default function MessageComponent({
     );
   }
 
-  // 2. Hiển thị Nhãn dán (Sticker)
+  // 2. Tin nhắn dạng Sticker
   if (message.sticker) {
     return (
       <BaseMessage
@@ -193,28 +197,35 @@ export default function MessageComponent({
     );
   }
 
-  // 3. Hiển thị Link / Vị trí chia sẻ
-  if (message.share) {
+  // 3. Tin nhắn dạng Chia sẻ link
+  if (message.share?.link) {
     return (
-      <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
-        {message.share.link ? (
-          <a
-            href={message.share.link}
-            target='_blank'
-            rel='noreferrer'
-            className='underline'
-          >
-            {content}
-          </a>
-        ) : (
-          <span>{content}</span>
-        )}
+      <BaseMessage
+        isFirst={isFirst}
+        isLast={isLast}
+        isMe={isMe}
+        message={message}
+      >
+        <a
+          href={message.share.link}
+          target='_blank'
+          rel='noreferrer'
+          className='underline'
+        >
+          {content}
+        </a>
       </BaseMessage>
     );
   }
 
+  // 4. Mặc định hiển thị tin nhắn văn bản thông thường
   return (
-    <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
+    <BaseMessage
+      isFirst={isFirst}
+      isLast={isLast}
+      isMe={isMe}
+      message={message}
+    >
       {content}
     </BaseMessage>
   );
