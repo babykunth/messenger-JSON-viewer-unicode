@@ -1,6 +1,6 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import randomColor from 'randomcolor';
 
@@ -14,6 +14,67 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
+// Component hiển thị hình ảnh từ FileSystemDirectoryHandle
+const FsImage = ({
+  rootDir,
+  uri,
+  alt,
+}: {
+  rootDir: FileSystemDirectoryHandle | null;
+  uri: string;
+  alt: string;
+}) => {
+  const [imgUrl, setImgUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    let objectUrl: string | null = null;
+
+    async function loadImage() {
+      if (!rootDir || !uri) return;
+      try {
+        // Chuẩn hóa đường dẫn Facebook Export
+        const parts = uri.replace(/^your_facebook_activity\//, '').split('/');
+        let currentHandle: any = rootDir;
+
+        for (let i = 0; i < parts.length - 1; i++) {
+          currentHandle = await currentHandle.getDirectoryHandle(parts[i]);
+        }
+
+        const fileHandle = await currentHandle.getFileHandle(parts[parts.length - 1]);
+        const file = await fileHandle.getFile();
+
+        if (isMounted) {
+          objectUrl = URL.createObjectURL(file);
+          setImgUrl(objectUrl);
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Không thể tải ảnh:', uri, err);
+      }
+    }
+
+    loadImage();
+
+    return () => {
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [rootDir, uri]);
+
+  if (!imgUrl) {
+    return <span className='text-xs text-gray-400 italic'>📷 Đang tải ảnh...</span>;
+  }
+
+  return (
+    <img
+      src={imgUrl}
+      alt={alt}
+      className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-700 mt-1'
+    />
+  );
+};
+
 const Home: NextPage = () => {
   const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(null);
   const [inboxDir, setInboxDir] = useState<FileSystemDirectoryHandle | null>(null);
@@ -25,7 +86,6 @@ const Home: NextPage = () => {
 
   const handleOpenFolder = async () => {
     try {
-      // Ép kiểu window thành any để gọi File System Access API an toàn
       const handle = await (window as any).showDirectoryPicker();
       if (handle) {
         setDirectory(handle);
@@ -70,7 +130,7 @@ const Home: NextPage = () => {
         <title>Messenger Archive Viewer</title>
       </Head>
 
-      {/* Cột bên trái: Sidebar */}
+      {/* Sidebar */}
       <aside className='flex w-80 flex-col border-r border-gray-700 bg-gray-800/50'>
         <div className='flex items-center justify-between p-4 border-b border-gray-700'>
           <h1 className='text-lg font-bold truncate'>
@@ -94,7 +154,6 @@ const Home: NextPage = () => {
           </div>
         </div>
 
-        {/* Thanh tìm kiếm */}
         <div className='p-3'>
           <input
             type='text'
@@ -105,7 +164,6 @@ const Home: NextPage = () => {
           />
         </div>
 
-        {/* Danh sách cuộc trò chuyện */}
         <div className='flex-1 overflow-y-auto px-2 space-y-1'>
           {!directory && (
             <div className='p-4 text-center text-sm text-gray-400'>
@@ -139,7 +197,7 @@ const Home: NextPage = () => {
         </div>
       </aside>
 
-      {/* Cột bên phải: Màn hình tin nhắn */}
+      {/* Chat Area */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
@@ -151,7 +209,7 @@ const Home: NextPage = () => {
                 </div>
               </div>
 
-              {/* Khung tin nhắn */}
+              {/* Danh sách tin nhắn */}
               <div className='flex-1 overflow-y-auto p-4 space-y-3'>
                 {currentMessage.messages.map((msg: Message, idx: number) => {
                   const sender = decodeString(msg.sender_name);
@@ -171,12 +229,17 @@ const Home: NextPage = () => {
                         }`}
                       >
                         {msg.content && <p className='whitespace-pre-wrap break-words'>{decodeString(msg.content)}</p>}
-                        {msg.photos && (
-                          <div className='mt-2 flex flex-wrap gap-1'>
+                        
+                        {/* Render trực tiếp hình ảnh */}
+                        {msg.photos && msg.photos.length > 0 && (
+                          <div className='mt-2 flex flex-wrap gap-2'>
                             {msg.photos.map((p, pIdx) => (
-                              <span key={pIdx} className='text-xs text-blue-400 underline block'>
-                                📷 [Photo: {p.uri}]
-                              </span>
+                              <FsImage
+                                key={pIdx}
+                                rootDir={directory}
+                                uri={p.uri}
+                                alt={`photo-${pIdx}`}
+                              />
                             ))}
                           </div>
                         )}
@@ -190,9 +253,8 @@ const Home: NextPage = () => {
               </div>
             </div>
 
-            {/* Panel thông tin bên phải */}
+            {/* Info Panel */}
             <div className='w-80 overflow-y-auto p-4 space-y-4 border-l border-gray-700 bg-gray-800/30'>
-              {/* Collapsible Thành viên */}
               <div className='border border-gray-700 rounded-lg overflow-hidden'>
                 <button
                   onClick={() => setIsMembersOpen(!isMembersOpen)}
@@ -221,7 +283,6 @@ const Home: NextPage = () => {
                 )}
               </div>
 
-              {/* Collapsible Thống kê */}
               {chatStatistic && (
                 <div className='border border-gray-700 rounded-lg overflow-hidden'>
                   <button
