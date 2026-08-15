@@ -40,8 +40,9 @@ export function getMyselfName(messages: Message[]): string | null {
   return mostFrequentName;
 }
 
-// Tải danh sách chatroom từ thư mục inbox
-export async function loadChats(inboxHandle: FileSystemDirectoryHandle): Promise<Chatroom[]> {
+// Tải danh sách chatroom (chấp nhận cả null)
+export async function loadChats(inboxHandle: FileSystemDirectoryHandle | null): Promise<Chatroom[]> {
+  if (!inboxHandle) return [];
   return await getChatrooms(inboxHandle);
 }
 
@@ -116,7 +117,7 @@ export function useChatStatistics(chat: Chatroom | Message[] | null) {
   return data;
 }
 
-// Hook lấy cuộc trò chuyện/tin nhắn hiện tại với tham số thứ 2 là tùy chọn (?)
+// Hook lấy cuộc trò chuyện/tin nhắn hiện tại
 export function useCurrentMessage(
   folderNameOrChats: string | Chatroom[] | null,
   folderNameOptional?: string | number | null
