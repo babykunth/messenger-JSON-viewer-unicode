@@ -9,7 +9,7 @@ import { getFileHandleRecursively } from '@/lib/utils/file';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 
 import FsImage from './FsImage';
-import { Message } from '../types';
+import { Message, MessageType } from '../types';
 
 function ReactionButton({
   reaction,
@@ -27,7 +27,7 @@ function ReactionButton({
       padding={10}
       content={() => (
         <div className='rounded bg-gray-600 py-0.5 px-1 text-white'>
-          {actors.map(decodeString).join(', ')}
+          {actors.map((actor) => decodeString(actor)).join(', ')}
         </div>
       )}
       onClickOutside={() => setPopoverOpen(false)}
@@ -126,8 +126,8 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  // Lấy nội dung gốc và giải mã UTF-8 chuẩn tiếng Việt
-  const rawContent = message.content || message.share?.share_text || '';
+  const msgAny = message as Record<string, any>;
+  const rawContent = message.content || msgAny.share?.share_text || '';
   const content = decodeString(rawContent);
 
   const { data: imageURIs } = useSWR(
@@ -157,7 +157,17 @@ export default function MessageComponent({
     }
   );
 
-  // 1. Tin nhắn dạng ảnh
+  const renderDefault = () => (
+    <BaseMessage
+      isFirst={isFirst}
+      isLast={isLast}
+      isMe={isMe}
+      message={message}
+    >
+      {content}
+    </BaseMessage>
+  );
+
   if (message.photos) {
     return (
       <SRLWrapper>
@@ -179,7 +189,6 @@ export default function MessageComponent({
     );
   }
 
-  // 2. Tin nhắn dạng Sticker
   if (message.sticker) {
     return (
       <BaseMessage
@@ -197,8 +206,7 @@ export default function MessageComponent({
     );
   }
 
-  // 3. Tin nhắn dạng Chia sẻ link
-  if (message.share?.link) {
+  if (msgAny.share?.link) {
     return (
       <BaseMessage
         isFirst={isFirst}
@@ -207,7 +215,7 @@ export default function MessageComponent({
         message={message}
       >
         <a
-          href={message.share.link}
+          href={msgAny.share.link}
           target='_blank'
           rel='noreferrer'
           className='underline'
@@ -218,15 +226,5 @@ export default function MessageComponent({
     );
   }
 
-  // 4. Mặc định hiển thị tin nhắn văn bản thông thường
-  return (
-    <BaseMessage
-      isFirst={isFirst}
-      isLast={isLast}
-      isMe={isMe}
-      message={message}
-    >
-      {content}
-    </BaseMessage>
-  );
+  return renderDefault();
 }
