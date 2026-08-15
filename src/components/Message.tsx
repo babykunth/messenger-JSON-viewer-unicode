@@ -126,7 +126,8 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const content = decodeString(message.content || '');
+  const rawContent = message.content || message.share?.share_text || '';
+  const content = decodeString(rawContent);
 
   const { data: imageURIs } = useSWR(
     () =>
@@ -192,23 +193,27 @@ export default function MessageComponent({
     );
   }
 
-  // 3. Xử lý hiển thị Link Chia sẻ
-  if (message.share?.link) {
+  // 3. Xử lý hiển thị Link Chia sẻ / Chia sẻ Vị trí
+  if (message.share) {
     return (
       <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
-        <a
-          href={message.share.link}
-          target='_blank'
-          rel='noreferrer'
-          className='underline'
-        >
-          {content}
-        </a>
+        {message.share.link ? (
+          <a
+            href={message.share.link}
+            target='_blank'
+            rel='noreferrer'
+            className='underline'
+          >
+            {content}
+          </a>
+        ) : (
+          <span>{content}</span>
+        )}
       </BaseMessage>
     );
   }
 
-  // 4. Mặc định hiển thị tin nhắn văn bản thông thường (Sửa triệt để lỗi "Not implemented")
+  // 4. Mặc định hiển thị văn bản tin nhắn
   return (
     <BaseMessage isFirst={isFirst} isLast={isLast} isMe={isMe} message={message}>
       {content}
