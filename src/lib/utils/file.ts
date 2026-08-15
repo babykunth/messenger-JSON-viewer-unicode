@@ -8,7 +8,7 @@ function decodeFBString(str: string): string {
       bytes[i] = str.charCodeAt(i) & 0xff;
     }
     return new TextDecoder('utf-8').decode(bytes);
-  } catch (e) {
+  } catch {
     return str;
   }
 }
@@ -21,9 +21,9 @@ function fixObjectEncoding<T>(obj: T): T {
     return obj.map((item) => fixObjectEncoding(item)) as unknown as T;
   }
   if (obj !== null && typeof obj === 'object') {
-    const newObj: Record<string, any> = {};
-    for (const key of Object.keys(obj)) {
-      newObj[key] = fixObjectEncoding((obj as Record<string, any>)[key]);
+    const newObj: Record<string, unknown> = {};
+    for (const key of Object.keys(obj as Record<string, unknown>)) {
+      newObj[key] = fixObjectEncoding((obj as Record<string, unknown>)[key]);
     }
     return newObj as T;
   }
@@ -34,7 +34,7 @@ export async function readJsonFile<T>(fileHandle: FileSystemFileHandle): Promise
   const file = await fileHandle.getFile();
   const text = await file.text();
   const data = JSON.parse(text);
-  return fixObjectEncoding(data);
+  return fixObjectEncoding<T>(data);
 }
 
 export async function getChatrooms(
