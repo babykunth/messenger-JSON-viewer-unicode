@@ -11,6 +11,8 @@
 ## Có gì mới?
 
 - Hỗ trợ giải mã ký tự tiếng Việt Unicode.
+- Giao diện hiển thị hỗ trợ English - Tiếng Việt.
+- Cập nhật giao diện tính năng, hiển thị thống kê của đoạn chat : ảnh - video - link - thành viên.
 
 ### Công nghệ sử dụng
 
