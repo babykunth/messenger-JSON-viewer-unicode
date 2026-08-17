@@ -3,10 +3,12 @@ import cx from 'clsx';
 import { Popover } from 'react-tiny-popover';
 import { SRLWrapper } from 'simple-react-lightbox';
 import useSWR from 'swr';
+
 import useToggle from '@/lib/hooks/useToggle';
 import { getFileHandleRecursively } from '@/lib/utils/file';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 import { Message, Photo } from '@/types';
+
 import FsImage from './FsImage';
 
 function ReactionButton({
@@ -17,6 +19,7 @@ function ReactionButton({
   actors: string[];
 }) {
   const [isPopoverOpen, setPopoverOpen, togglePopover] = useToggle(false);
+
   return (
     <Popover
       isOpen={isPopoverOpen}
@@ -53,6 +56,7 @@ function BaseMessage({
 }) {
   const [isPopoverOpen, setPopoverOpen, togglePopover] = useToggle(false);
   const groupedActions = useGroupedActorsByReaction(message);
+
   return (
     <div
       className={cx('flex', {
@@ -91,6 +95,7 @@ function BaseMessage({
           }}
         >
           {children}
+
           {groupedActions && (
             <div className='absolute right-2 -bottom-5 select-none rounded-2xl bg-white px-2 py-0.5 shadow dark:bg-slate-800'>
               {Object.entries(groupedActions).map(([reaction, actors]) => (
@@ -115,29 +120,27 @@ export default function MessageComponent({
   isMe,
   rootDir,
 }: {
-  message: Message & { videos?: Array<{ uri: string }> | string | string[] };
+  message: Message;
   isFirst: boolean;
   isLast: boolean;
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const rawContent = decodeString(message.content);
-
-  // Cải tiến Regex quét linh hoạt hơn với mọi khoảng trắng hoặc ngắt dòng sau nhãn Video
-  const videoMatch = rawContent.match(/\[Video:\s*([\s\S]*?)\]/);
-  const embeddedVideoPath = videoMatch ? videoMatch[1].trim() : null;
+  const content = decodeString(message.content);
 
   const { data: imageURIs } = useSWR(
-    () => (message.photos ? `/message/photo/${message.timestamp_ms}` : null),
+    () =>
+      message.photos
+        ? `/message/photo/${message.timestamp_ms}`
+        : null,
     async () => {
       if (!message.photos) {
         return [];
       }
+
       const images = await Promise.all(
         message.photos.map(async (photo: Photo) => {
-          const uri = photo.uri
-            .replace(/^messages\//, '')
-            .replace(/^your_facebook_activity\/messages\//, '');
+          const uri = photo.uri.replace(/^messages\//, '');
           const fileHandle = await getFileHandleRecursively(rootDir, uri);
           if (!fileHandle) {
             return null;
@@ -146,42 +149,8 @@ export default function MessageComponent({
           return URL.createObjectURL(file);
         })
       );
+
       return images.filter(Boolean) as string[];
-    }
-  );
-
-  const hasVideos = message.videos || embeddedVideoPath;
-  const { data: videoURIs } = useSWR(
-    () => (hasVideos ? `/message/video/${message.timestamp_ms}` : null),
-    async () => {
-      let videoList: string[] = [];
-
-      if (message.videos) {
-        const rawVideos = Array.isArray(message.videos)
-          ? message.videos
-          : [message.videos];
-        videoList = rawVideos.map((v) => (typeof v === 'string' ? v : v.uri));
-      } else if (embeddedVideoPath) {
-        videoList = [embeddedVideoPath];
-      }
-
-      if (videoList.length === 0) return [];
-
-      const videos = await Promise.all(
-        videoList.map(async (videoUri: string) => {
-          const cleanUri = videoUri
-            .replace(/^your_facebook_activity\/messages\//, '')
-            .replace(/^messages\//, '');
-
-          const fileHandle = await getFileHandleRecursively(rootDir, cleanUri);
-          if (!fileHandle) {
-            return null;
-          }
-          const file = await fileHandle.getFile();
-          return URL.createObjectURL(file);
-        })
-      );
-      return videos.filter(Boolean) as string[];
     }
   );
 
@@ -192,38 +161,10 @@ export default function MessageComponent({
       isMe={isMe}
       message={message}
     >
-      {rawContent}
+      {content}
     </BaseMessage>
   );
 
-  // 1. Kiểm tra và ưu tiên render khung video trực tiếp
-  if (message.videos || embeddedVideoPath) {
-    return (
-      <BaseMessage
-        isFirst={isFirst}
-        isLast={isLast}
-        isMe={isMe}
-        message={message}
-      >
-        {videoURIs && videoURIs.length > 0 ? (
-          videoURIs.map((uri) => (
-            <video
-              key={uri}
-              controls
-              className='max-h-80 w-full rounded-md object-contain bg-black'
-              src={uri}
-            />
-          ))
-        ) : (
-          <div className='flex items-center space-x-2'>
-            <span>🎥 Đang tải video...</span>
-          </div>
-        )}
-      </BaseMessage>
-    );
-  }
-
-  // 2. Kiểm tra ảnh
   if (message.photos) {
     return (
       <SRLWrapper>
@@ -239,7 +180,7 @@ export default function MessageComponent({
                   <img src={uri} alt={uri} />
                 </a>
               ))
-            : rawContent}
+            : content}
         </BaseMessage>
       </SRLWrapper>
     );
@@ -256,9 +197,7 @@ export default function MessageComponent({
       >
         <FsImage
           root={rootDir}
-          path={message.sticker.uri
-            .replace(/^messages\//, '')
-            .replace(/^your_facebook_activity\/messages\//, '')}
+          path={message.sticker.uri.replace(/^messages\//, '')}
         />
       </BaseMessage>
     );
@@ -278,7 +217,7 @@ export default function MessageComponent({
           rel='noreferrer'
           className='underline'
         >
-          {rawContent || decodeString(message.share.share_text)}
+          {content || decodeString(message.share.share_text)}
         </a>
       </BaseMessage>
     );
