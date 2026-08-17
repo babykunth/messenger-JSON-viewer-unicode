@@ -1,8 +1,34 @@
+export async function getFileHandleRecursively(
+  dirHandle: FileSystemDirectoryHandle,
+  path: string
+): Promise<FileSystemFileHandle | null> {
+  const parts = path.split('/').filter(Boolean);
+  let currentHandle: FileSystemDirectoryHandle | FileSystemFileHandle = dirHandle;
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (currentHandle.kind === 'directory') {
+      try {
+        if (i === parts.length - 1) {
+          const fileHandle = await currentHandle.getFileHandle(part);
+          return fileHandle;
+        } else {
+          currentHandle = await currentHandle.getDirectoryHandle(part);
+        }
+      } catch {
+        return null;
+      }
+    } else {
+      return null;
+    }
+  }
+  return null;
+}
+
 export async function findInboxFolder(
   directoryHandle: FileSystemDirectoryHandle
 ): Promise<FileSystemDirectoryHandle | null> {
   // 1. Kiểm tra trực tiếp tại thư mục gốc được chọn (H:/messages/)
-  // Nếu có thư mục con tên là 'inbox' (cấu trúc chuẩn Facebook)
   try {
     for await (const [name, handle] of directoryHandle.entries()) {
       if (name === 'inbox' && handle.kind === 'directory') {
@@ -10,8 +36,6 @@ export async function findInboxFolder(
       }
     }
 
-    // Nếu không có thư mục 'inbox', kiểm tra xem thư mục hiện tại 
-    // có chứa các file .json hoặc thư mục chat / media trực tiếp không (cấu trúc đơn giản H:/messages/)
     let hasChatData = false;
     for await (const [name, handle] of directoryHandle.entries()) {
       if (handle.kind === 'directory' || name.endsWith('.json')) {
