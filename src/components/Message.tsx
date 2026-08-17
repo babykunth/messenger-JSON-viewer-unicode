@@ -123,7 +123,7 @@ export default function MessageComponent({
 }) {
   const rawContent = decodeString(message.content);
 
-  // Kiểm tra xem nội dung có chứa cú pháp video dạng: [Video: đường_dẫn] hay không
+  // Cập nhật Regex quét linh hoạt chuỗi chứa Video bất kể có icon 🎥 hay khoảng trắng đi kèm
   const videoMatch = rawContent.match(/\[Video:\s*([^\]]+)\]/);
   const embeddedVideoPath = videoMatch ? videoMatch[1].trim() : null;
 
@@ -148,7 +148,6 @@ export default function MessageComponent({
     }
   );
 
-  // Xử lý tải tệp video (hỗ trợ cả thuộc tính videos lẫn trích xuất từ nội dung chuỗi)
   const videoSourceKey = message.videos || embeddedVideoPath;
   const { data: videoURIs } = useSWR(
     () => (videoSourceKey ? `/message/video/${message.timestamp_ms}` : null),
@@ -190,28 +189,7 @@ export default function MessageComponent({
     </BaseMessage>
   );
 
-  if (message.photos) {
-    return (
-      <SRLWrapper>
-        <BaseMessage
-          isFirst={isFirst}
-          isLast={isLast}
-          isMe={isMe}
-          message={message}
-        >
-          {imageURIs
-            ? imageURIs.map((uri) => (
-                <a href={uri} key={uri}>
-                  <img src={uri} alt={uri} />
-                </a>
-              ))
-            : rawContent}
-        </BaseMessage>
-      </SRLWrapper>
-    );
-  }
-
-  // Hiển thị trực tiếp video (kể cả khi lấy từ thuộc tính message.videos hoặc từ chuỗi nội dung)
+  // 1. Kiểm tra và hiển thị khung phát video trực tiếp
   if (message.videos || embeddedVideoPath) {
     return (
       <BaseMessage
@@ -233,6 +211,28 @@ export default function MessageComponent({
           rawContent
         )}
       </BaseMessage>
+    );
+  }
+
+  // 2. Kiểm tra ảnh
+  if (message.photos) {
+    return (
+      <SRLWrapper>
+        <BaseMessage
+          isFirst={isFirst}
+          isLast={isLast}
+          isMe={isMe}
+          message={message}
+        >
+          {imageURIs
+            ? imageURIs.map((uri) => (
+                <a href={uri} key={uri}>
+                  <img src={uri} alt={uri} />
+                </a>
+              ))
+            : rawContent}
+        </BaseMessage>
+      </SRLWrapper>
     );
   }
 
