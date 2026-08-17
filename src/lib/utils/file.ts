@@ -1,6 +1,6 @@
 import { Chatroom, Message, Participant } from '@/types';
 
-// Giải mã chuẩn chuỗi bị lỗi font tiếng Việt (Mojibake) từ Facebook
+// Hàm giải mã chuẩn xác chuỗi tiếng Việt bị lỗi mã hóa (Mojibake) từ Facebook
 export function decodeFBString(str: string | undefined): string {
   if (!str) return '';
   try {
@@ -8,7 +8,14 @@ export function decodeFBString(str: string | undefined): string {
     for (let i = 0; i < str.length; i++) {
       bytes[i] = str.charCodeAt(i) & 0xff;
     }
-    return new TextDecoder('utf-8').decode(bytes);
+    // Sử dụng TextDecoder với chuẩn utf-8 và ép buộc xử lý lỗi thay thế
+    const decoded = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    // Nếu vẫn còn lỗi mã hóa Latin-1 thô, thực hiện decode an toàn qua escape/decodeURIComponent
+    try {
+      return decodeURIComponent(escape(decoded));
+    } catch {
+      return decoded;
+    }
   } catch {
     return str || '';
   }
@@ -21,29 +28,31 @@ export async function findInboxFolder(
   return dirHandle;
 }
 
-// Hỗ trợ tìm kiếm file đệ quy linh hoạt cho cả thư mục media nằm ở gốc
+// Cải tiến hàm tìm kiếm file để hỗ trợ tuyệt đối thư mục media nằm ở cấp gốc hoặc trong thư mục chat
 export async function getFileHandleRecursively(
   dirHandle: FileSystemDirectoryHandle | null,
   relativePath: string
 ): Promise<FileSystemFileHandle | null> {
-  if (!dirHandle) return null;
+  if (!dirHandle || !relativePath) return null;
   
-  // Chuẩn hóa đường dẫn loại bỏ các tiền tố thư mục thừa nếu có
+  // Chuẩn hóa đường dẫn, loại bỏ các tiền tố thư mục rác
   const cleanPath = relativePath.replace(/^messages\/|^\/|^\.\//g, '');
   const parts = cleanPath.split('/').filter(Boolean);
+  
   let currentDir: FileSystemDirectoryHandle | FileSystemFileHandle = dirHandle;
 
   for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
     try {
       if (currentDir.kind === 'directory') {
-        currentDir = await currentDir.getDirectoryHandle(parts[i]);
+        currentDir = await currentDir.getDirectoryHandle(part);
       } else {
         return null;
       }
     } catch {
-      // Nếu không tìm thấy ở phân cấp hiện tại, thử tìm trực tiếp từ thư mục gốc dirHandle
+      // Nếu không tìm thấy theo phân cấp, thử tìm trực tiếp từ thư mục gốc
       try {
-        currentDir = await dirHandle.getDirectoryHandle(parts[i]);
+        currentDir = await dirHandle.getDirectoryHandle(part);
       } catch {
         return null;
       }
@@ -55,7 +64,13 @@ export async function getFileHandleRecursively(
       return await currentDir.getFileHandle(parts[parts.length - 1]);
     }
   } catch {
-    return null;
+    // Thử tìm vét cạn trực tiếp từ thư mục gốc nếu đường dẫn sâu bị lệch
+    try {
+      const fileName = parts[parts.length - 1];
+      return await dirHandle.getFileHandle(fileName);
+    } catch {
+      return null;
+    }
   }
   return null;
 }
@@ -109,7 +124,7 @@ export async function getChatrooms(
       }
 
       if (messages.length > 0) {
-        // Sắp xếp tin nhắn theo thời gian tăng dần để phục vụ bảng thống kê và khung chat
+        // Sắp xếp tin nhắn theo thứ tự thời gian tăng dần để các tính năng thống kê hoạt động đúng
         messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
         const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
 
@@ -141,7 +156,7 @@ export async function getChatrooms(
   }
 
   for await (const entry of dirHandle.values()) {
-    // Bỏ qua các thư mục chứa tài nguyên chung, chỉ giữ lại tệp chat và duyệt media linh hoạt
+    // Bỏ qua các tệp không chứa đoạn chat
     if (['files', 'audio'].includes(entry.name)) {
       continue;
     }
