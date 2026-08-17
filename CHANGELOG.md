@@ -8,3 +8,4 @@
 - Giao diện hiển thị hỗ trợ English - Tiếng Việt.
 - Xem trực tiếp hình ảnh, video ngay trong đoạn chat.
 - Cập nhật giao diện tính năng, cột hiển thị thống kê của đoạn chat : Ảnh - Video - Link - Thành viên.
+- Hiển thị thời gian của tin nhắn.
