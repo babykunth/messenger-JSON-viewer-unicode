@@ -123,8 +123,8 @@ export default function MessageComponent({
 }) {
   const rawContent = decodeString(message.content);
 
-  // Lấy đường dẫn video từ thuộc tính videos của object message hoặc trích xuất từ chuỗi nội dung nếu có cấu trúc [Video: ...]
-  const videoMatch = rawContent.match(/\[Video:\s*([^\]]+)\]/);
+  // Cải tiến Regex quét linh hoạt hơn với mọi khoảng trắng hoặc ngắt dòng sau nhãn Video
+  const videoMatch = rawContent.match(/\[Video:\s*([\s\S]*?)\]/);
   const embeddedVideoPath = videoMatch ? videoMatch[1].trim() : null;
 
   const { data: imageURIs } = useSWR(
@@ -135,7 +135,9 @@ export default function MessageComponent({
       }
       const images = await Promise.all(
         message.photos.map(async (photo: Photo) => {
-          const uri = photo.uri.replace(/^messages\//, '').replace(/^your_facebook_activity\/messages\//, '');
+          const uri = photo.uri
+            .replace(/^messages\//, '')
+            .replace(/^your_facebook_activity\/messages\//, '');
           const fileHandle = await getFileHandleRecursively(rootDir, uri);
           if (!fileHandle) {
             return null;
@@ -148,7 +150,6 @@ export default function MessageComponent({
     }
   );
 
-  // Xử lý lấy tệp video thực tế từ File System Access API
   const hasVideos = message.videos || embeddedVideoPath;
   const { data: videoURIs } = useSWR(
     () => (hasVideos ? `/message/video/${message.timestamp_ms}` : null),
@@ -156,7 +157,9 @@ export default function MessageComponent({
       let videoList: string[] = [];
 
       if (message.videos) {
-        const rawVideos = Array.isArray(message.videos) ? message.videos : [message.videos];
+        const rawVideos = Array.isArray(message.videos)
+          ? message.videos
+          : [message.videos];
         videoList = rawVideos.map((v) => (typeof v === 'string' ? v : v.uri));
       } else if (embeddedVideoPath) {
         videoList = [embeddedVideoPath];
@@ -166,7 +169,6 @@ export default function MessageComponent({
 
       const videos = await Promise.all(
         videoList.map(async (videoUri: string) => {
-          // Xử lý loại bỏ các tiền tố thư mục thừa để khớp cấu trúc quét file cục bộ
           const cleanUri = videoUri
             .replace(/^your_facebook_activity\/messages\//, '')
             .replace(/^messages\//, '');
@@ -194,7 +196,7 @@ export default function MessageComponent({
     </BaseMessage>
   );
 
-  // 1. Kiểm tra ưu tiên hiển thị video trực tiếp lên đầu
+  // 1. Kiểm tra và ưu tiên render khung video trực tiếp
   if (message.videos || embeddedVideoPath) {
     return (
       <BaseMessage
@@ -208,18 +210,20 @@ export default function MessageComponent({
             <video
               key={uri}
               controls
-              className="max-h-80 w-full rounded-md object-contain bg-black"
+              className='max-h-80 w-full rounded-md object-contain bg-black'
               src={uri}
             />
           ))
         ) : (
-          rawContent
+          <div className='flex items-center space-x-2'>
+            <span>🎥 Đang tải video...</span>
+          </div>
         )}
       </BaseMessage>
     );
   }
 
-  // 2. Kiểm tra hiển thị ảnh
+  // 2. Kiểm tra ảnh
   if (message.photos) {
     return (
       <SRLWrapper>
@@ -252,7 +256,9 @@ export default function MessageComponent({
       >
         <FsImage
           root={rootDir}
-          path={message.sticker.uri.replace(/^messages\//, '').replace(/^your_facebook_activity\/messages\//, '')}
+          path={message.sticker.uri
+            .replace(/^messages\//, '')
+            .replace(/^your_facebook_activity\/messages\//, '')}
         />
       </BaseMessage>
     );
