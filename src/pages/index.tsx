@@ -11,6 +11,60 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom } from '@/types';
 
+// Từ điển đa ngôn ngữ (Tiếng Việt & Tiếng Anh)
+const translations = {
+  vi: {
+    chatsTitle: 'Đoạn chat',
+    searchPlaceholder: 'Tìm kiếm trên Messenger',
+    loadFolderPrompt: 'Nhấn vào biểu tượng thư mục 📁 ở góc trên để tải thư mục chứa tin nhắn Messenger của bạn.',
+    archiveLabel: 'Lưu trữ tin nhắn',
+    chatInfoTitle: 'Thông tin đoạn chat',
+    mediaTab: 'Phương tiện',
+    filesTab: 'File',
+    linksTab: 'Liên kết',
+    membersTab: 'Thành viên',
+    mediaHeader: 'Ảnh & Video',
+    noMedia: 'Không có tệp phương tiện nào',
+    noFiles: 'Không có file tài liệu nào',
+    noLinks: 'Không có liên kết nào',
+    noMembers: 'Không có dữ liệu thành viên',
+    memberStatsTitle: 'Thành viên & Thống kê đóng góp',
+    msgCount: 'Tin nhắn',
+    photoCount: 'Ảnh',
+    videoCount: 'Video',
+    linkCount: 'Link',
+    selectChatPrompt: 'Chọn một đoạn chat bên trái để xem lịch sử tin nhắn',
+    inputPlaceholder: 'Aa (Chế độ xem lịch sử lưu trữ)',
+    unknownUser: 'Người dùng ẩn danh',
+    attachedFile: 'Tệp đính kèm',
+  },
+  en: {
+    chatsTitle: 'Chats',
+    searchPlaceholder: 'Search Messenger',
+    loadFolderPrompt: 'Click the folder icon 📁 above to load your Messenger message folder.',
+    archiveLabel: 'Archived messages',
+    chatInfoTitle: 'Chat info',
+    mediaTab: 'Media',
+    filesTab: 'Files',
+    linksTab: 'Links',
+    membersTab: 'Members',
+    mediaHeader: 'Photos & Videos',
+    noMedia: 'No media files found',
+    noFiles: 'No document files found',
+    noLinks: 'No links found',
+    noMembers: 'No member data found',
+    memberStatsTitle: 'Members & Contribution Stats',
+    msgCount: 'Messages',
+    photoCount: 'Photos',
+    videoCount: 'Videos',
+    linkCount: 'Links',
+    selectChatPrompt: 'Select a chat on the left to view message history',
+    inputPlaceholder: 'Aa (Archive viewing mode)',
+    unknownUser: 'Unknown user',
+    attachedFile: 'Attached file',
+  },
+};
+
 // Hàm lấy FileHandle thông minh từ URI tương đối của Messenger
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
@@ -253,8 +307,11 @@ const Home: NextPage = () => {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [lang, setLang] = useState<'vi' | 'en'>('vi'); // Trạng thái ngôn ngữ hiện tại
   const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [mediaTab, setMediaTab] = useState<'media' | 'files' | 'links' | 'members'>('media');
+
+  const t = translations[lang];
 
   const handleOpenFolder = async () => {
     try {
@@ -307,7 +364,7 @@ const Home: NextPage = () => {
     const membersMap: Record<string, MemberStat> = {};
 
     currentMessage.messages.forEach((msg: any) => {
-      const sender = decodeString(msg.sender_name || 'Người dùng ẩn danh');
+      const sender = decodeString(msg.sender_name || t.unknownUser);
       if (!membersMap[sender]) {
         membersMap[sender] = { name: sender, messages: 0, photos: 0, videos: 0, links: 0 };
       }
@@ -365,7 +422,7 @@ const Home: NextPage = () => {
     const members: MemberStat[] = Object.values(membersMap).sort((a, b) => b.messages - a.messages);
 
     return { photos, videos, files, links, members };
-  }, [currentMessage]);
+  }, [currentMessage, t.unknownUser]);
 
   return (
     <div
@@ -383,8 +440,24 @@ const Home: NextPage = () => {
           isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
         }`}
       >
-        <div className='flex items-center justify-between px-4 pt-4 pb-2'>
-          <h1 className='text-2xl font-bold tracking-tight'>Đoạn chat</h1>
+        {/* Nút chuyển đổi ngôn ngữ ở góc trên cùng bên trái, ngay phía trên chữ Đoạn chat */}
+        <div className='px-4 pt-3 pb-1 flex items-center justify-start'>
+          <button
+            onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
+            className={`text-xs font-semibold px-2.5 py-1 rounded-full border transition-all flex items-center gap-1.5 shadow-2xs ${
+              isDark
+                ? 'border-[#3a3b3c] bg-[#3a3b3c] text-gray-200 hover:bg-[#4e4f50]'
+                : 'border-gray-300 bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+            title='Chuyển đổi ngôn ngữ / Change Language'
+          >
+            <span>🌐</span>
+            <span>{lang === 'vi' ? '🇻🇳 Tiếng Việt' : '🇬🇧 English'}</span>
+          </button>
+        </div>
+
+        <div className='flex items-center justify-between px-4 pt-1 pb-2'>
+          <h1 className='text-2xl font-bold tracking-tight'>{t.chatsTitle}</h1>
           <div className='flex gap-1'>
             <button
               onClick={handleOpenFolder}
@@ -416,7 +489,7 @@ const Home: NextPage = () => {
             <span className='text-gray-400 text-sm'>🔍</span>
             <input
               type='text'
-              placeholder='Tìm kiếm trên Messenger'
+              placeholder={t.searchPlaceholder}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className={`w-full bg-transparent text-sm outline-none ${
@@ -429,7 +502,7 @@ const Home: NextPage = () => {
         <div className='flex-1 overflow-y-auto px-2 space-y-0.5 mt-1'>
           {!directory && (
             <div className='p-6 text-center text-sm text-gray-400'>
-              Nhấn vào biểu tượng thư mục 📁 ở góc trên để tải thư mục chứa tin nhắn Messenger của bạn.
+              {t.loadFolderPrompt}
             </div>
           )}
           {filteredChats.map((chat) => {
@@ -483,7 +556,7 @@ const Home: NextPage = () => {
                       {currentMessage.title || currentMessage.name}
                     </h2>
                     <p className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                      Lưu trữ tin nhắn
+                      {t.archiveLabel}
                     </p>
                   </div>
                 </div>
@@ -493,7 +566,7 @@ const Home: NextPage = () => {
                   className={`p-2 rounded-full transition-colors text-lg ${
                     isDark ? 'hover:bg-[#3a3b3c] text-gray-300' : 'hover:bg-gray-100 text-gray-700'
                   }`}
-                  title='Thông tin đoạn chat'
+                  title={t.chatInfoTitle}
                 >
                   ℹ️
                 </button>
@@ -615,7 +688,7 @@ const Home: NextPage = () => {
                   <input
                     type='text'
                     disabled
-                    placeholder='Aa (Chế độ xem lịch sử lưu trữ)'
+                    placeholder={t.inputPlaceholder}
                     className={`w-full bg-transparent text-sm outline-none cursor-not-allowed ${isDark ? 'text-gray-400 placeholder-gray-500' : 'text-gray-500 placeholder-gray-400'}`}
                   />
                 </div>
@@ -639,7 +712,7 @@ const Home: NextPage = () => {
                     {currentMessage.title || currentMessage.name}
                   </h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Đoạn chat lưu trữ ({chatDataAnalysis.members.length} thành viên)
+                    {chatDataAnalysis.members.length} {lang === 'vi' ? 'thành viên' : 'members'}
                   </p>
                 </div>
 
@@ -653,7 +726,7 @@ const Home: NextPage = () => {
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                   >
-                    Phương tiện
+                    {t.mediaTab}
                   </button>
                   <button
                     onClick={() => setMediaTab('files')}
@@ -663,7 +736,7 @@ const Home: NextPage = () => {
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                   >
-                    File ({chatDataAnalysis.files.length})
+                    {t.filesTab} ({chatDataAnalysis.files.length})
                   </button>
                   <button
                     onClick={() => setMediaTab('links')}
@@ -673,7 +746,7 @@ const Home: NextPage = () => {
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                   >
-                    Liên kết
+                    {t.linksTab}
                   </button>
                   <button
                     onClick={() => setMediaTab('members')}
@@ -683,7 +756,7 @@ const Home: NextPage = () => {
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                   >
-                    Thành viên ({chatDataAnalysis.members.length})
+                    {t.membersTab} ({chatDataAnalysis.members.length})
                   </button>
                 </div>
 
@@ -693,7 +766,7 @@ const Home: NextPage = () => {
                     <div className='space-y-4'>
                       <div>
                         <h4 className={`text-xs font-bold mb-2 uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Ảnh & Video ({chatDataAnalysis.photos.length + chatDataAnalysis.videos.length})
+                          {t.mediaHeader} ({chatDataAnalysis.photos.length + chatDataAnalysis.videos.length})
                         </h4>
                         
                         <div className='grid grid-cols-3 gap-1.5'>
@@ -719,7 +792,7 @@ const Home: NextPage = () => {
 
                         {chatDataAnalysis.photos.length === 0 && chatDataAnalysis.videos.length === 0 && (
                           <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                            Không có tệp phương tiện nào
+                            {t.noMedia}
                           </p>
                         )}
                       </div>
@@ -732,13 +805,13 @@ const Home: NextPage = () => {
                         <div key={fIdx} className={`p-2.5 rounded-xl flex items-center gap-2.5 ${isDark ? 'bg-[#3a3b3c]' : 'bg-gray-100'}`}>
                           <span className='text-lg'>📄</span>
                           <div className='min-w-0 flex-1'>
-                            <p className='text-xs font-semibold truncate'>{file.title || file.uri || 'Tệp đính kèm'}</p>
+                            <p className='text-xs font-semibold truncate'>{file.title || file.uri || t.attachedFile}</p>
                           </div>
                         </div>
                       ))}
                       {chatDataAnalysis.files.length === 0 && (
                         <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Không có file tài liệu nào
+                          {t.noFiles}
                         </p>
                       )}
                     </div>
@@ -762,7 +835,7 @@ const Home: NextPage = () => {
                       ))}
                       {chatDataAnalysis.links.length === 0 && (
                         <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Không có liên kết nào
+                          {t.noLinks}
                         </p>
                       )}
                     </div>
@@ -771,7 +844,7 @@ const Home: NextPage = () => {
                   {mediaTab === 'members' && (
                     <div className='space-y-3'>
                       <h4 className={`text-xs font-bold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Thành viên & Thống kê đóng góp
+                        {t.memberStatsTitle}
                       </h4>
                       {chatDataAnalysis.members.map((member: any, mIdx: number) => (
                         <div
@@ -793,26 +866,26 @@ const Home: NextPage = () => {
                           <div className={`grid grid-cols-4 gap-1 pt-1 border-t text-center text-[10px] ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-200 text-gray-600'}`}>
                             <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
                               <p className='font-bold'>{member.messages}</p>
-                              <p className='text-[9px] opacity-75'>Tin nhắn</p>
+                              <p className='text-[9px] opacity-75'>{t.msgCount}</p>
                             </div>
                             <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
                               <p className='font-bold'>{member.photos}</p>
-                              <p className='text-[9px] opacity-75'>Ảnh</p>
+                              <p className='text-[9px] opacity-75'>{t.photoCount}</p>
                             </div>
                             <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
                               <p className='font-bold'>{member.videos}</p>
-                              <p className='text-[9px] opacity-75'>Video</p>
+                              <p className='text-[9px] opacity-75'>{t.videoCount}</p>
                             </div>
                             <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
                               <p className='font-bold'>{member.links}</p>
-                              <p className='text-[9px] opacity-75'>Link</p>
+                              <p className='text-[9px] opacity-75'>{t.linkCount}</p>
                             </div>
                           </div>
                         </div>
                       ))}
                       {chatDataAnalysis.members.length === 0 && (
                         <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                          Không có dữ liệu thành viên
+                          {t.noMembers}
                         </p>
                       )}
                     </div>
@@ -825,7 +898,7 @@ const Home: NextPage = () => {
           </div>
         ) : (
           <div className={`flex flex-1 items-center justify-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Chọn một đoạn chat bên trái để xem lịch sử tin nhắn
+            {t.selectChatPrompt}
           </div>
         )}
       </main>
