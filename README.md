@@ -12,7 +12,8 @@
 
 - Hỗ trợ giải mã ký tự tiếng Việt Unicode.
 - Giao diện hiển thị hỗ trợ English - Tiếng Việt.
-- Cập nhật giao diện tính năng, hiển thị thống kê của đoạn chat : Ảnh - Video - Link - Thành viên.
+- Xem trực tiếp hình ảnh, video ngay trong đoạn chat.
+- Cập nhật giao diện tính năng, cột hiển thị thống kê của đoạn chat : Ảnh - Video - Link - Thành viên.
 
 ### Công nghệ sử dụng
 
