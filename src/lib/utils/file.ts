@@ -82,7 +82,6 @@ export async function getChatrooms(
         }
       }
 
-      // Hỗ trợ quét linh hoạt các tên trường chứa tin nhắn có thể có trong file JSON
       const rawMessages = data.messages || data.msg || data.list || (Array.isArray(data) ? data : []);
       if (Array.isArray(rawMessages)) {
         for (const msg of rawMessages) {
@@ -91,12 +90,11 @@ export async function getChatrooms(
             timestamp_ms: msg.timestamp_ms || msg.timestamp || Date.now(),
             content: decodeFBString(msg.content || msg.text || ''),
             photos: msg.photos || [],
-            videos: msg.videos || [],
             audio_files: msg.audio_files || [],
             files: msg.files || [],
             reactions: msg.reactions || [],
             type: msg.type || 'Generic',
-          });
+          } as Message);
         }
       }
 
