@@ -18,7 +18,6 @@ export async function findInboxFolder(
 ): Promise<FileSystemDirectoryHandle | null> {
   if (!dirHandle) return null;
 
-  // Nếu bản thân thư mục này đã chứa các thư mục chat hoặc file json, hoặc có thư mục con là 'inbox'
   let hasValidContent = false;
   for await (const entry of dirHandle.values()) {
     if (entry.name === 'inbox' && entry.kind === 'directory') {
@@ -33,7 +32,6 @@ export async function findInboxFolder(
     return dirHandle;
   }
 
-  // Nếu không, tiếp tục tìm sâu xuống các thư mục con bên trong (hỗ trợ your_facebook_activity)
   for await (const entry of dirHandle.values()) {
     if (entry.kind === 'directory') {
       const found = await findInboxFolder(entry);
@@ -80,14 +78,14 @@ export async function readJsonFile<T>(fileHandle: FileSystemFileHandle): Promise
   return JSON.parse(text) as T;
 }
 
-export async function loadChats(
+// Giữ đúng tên hàm getChatrooms để khớp với file message.ts và hỗ trợ đọc trực tiếp H:/messages/
+export async function getChatrooms(
   dirHandle: FileSystemDirectoryHandle | null
 ): Promise<Chatroom[]> {
   if (!dirHandle) return [];
   const chatrooms: Chatroom[] = [];
 
   for await (const entry of dirHandle.values()) {
-    // Bỏ qua các thư mục không liên quan như media hoặc file hệ thống
     if (entry.kind === 'directory' && entry.name !== 'media') {
       try {
         const subDir = await dirHandle.getDirectoryHandle(entry.name);
