@@ -235,6 +235,14 @@ const FsVideo = ({
   );
 };
 
+interface MemberStat {
+  name: string;
+  messages: number;
+  photos: number;
+  videos: number;
+  links: number;
+}
+
 const Home: NextPage = () => {
   const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(
     null
@@ -289,12 +297,14 @@ const Home: NextPage = () => {
 
   // Trích xuất Media, Files, Links và Thống kê thành viên từ đoạn chat hiện tại
   const chatDataAnalysis = useMemo(() => {
-    if (!currentMessage?.messages) return { photos: [], videos: [], files: [], links: [], members: {} };
-    const photos: any[] = [];
-    const videos: any[] = [];
+    if (!currentMessage?.messages) {
+      return { photos: [] as string[], videos: [] as string[], files: [] as any[], links: [] as any[], members: [] as MemberStat[] };
+    }
+    const photos: string[] = [];
+    const videos: string[] = [];
     const files: any[] = [];
     const links: any[] = [];
-    const membersMap: Record<string, { name: string; messages: number; photos: number; videos: number; links: number }> = {};
+    const membersMap: Record<string, MemberStat> = {};
 
     currentMessage.messages.forEach((msg: any) => {
       const sender = decodeString(msg.sender_name || 'Người dùng ẩn danh');
@@ -352,7 +362,7 @@ const Home: NextPage = () => {
       if (hasMsgLink) membersMap[sender].links += 1;
     });
 
-    const members = Object.values(membersMap).sort((a, b) => b.messages - a.messages);
+    const members: MemberStat[] = Object.values(membersMap).sort((a, b) => b.messages - a.messages);
 
     return { photos, videos, files, links, members };
   }, [currentMessage]);
