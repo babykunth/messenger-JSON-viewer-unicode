@@ -3,6 +3,7 @@ import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useSWR from 'swr';
+import { InformationCircleIcon, MoonIcon, RefreshIcon, SunIcon } from '@heroicons/react/outline';
 import { findInboxFolder } from '@/lib/utils/file';
 import {
   decodeString,
