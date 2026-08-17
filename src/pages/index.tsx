@@ -53,6 +53,34 @@ async function getFileHandleFromUri(
   return null;
 }
 
+// Hàm phụ trợ tạo màu sắc nhất quán cho từng tên người dùng (giống Messenger)
+function getUserColor(name: string, isDark: boolean): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const colorsDark = [
+    'text-blue-400',
+    'text-emerald-400',
+    'text-amber-400',
+    'text-rose-400',
+    'text-purple-400',
+    'text-cyan-400',
+    'text-pink-400',
+  ];
+  const colorsLight = [
+    'text-blue-600',
+    'text-emerald-600',
+    'text-amber-600',
+    'text-rose-600',
+    'text-purple-600',
+    'text-cyan-600',
+    'text-pink-600',
+  ];
+  const palette = isDark ? colorsDark : colorsLight;
+  return palette[Math.abs(hash) % palette.length];
+}
+
 // Component FsImage hiển thị ảnh cục bộ
 const FsImage = ({
   rootDir,
@@ -265,7 +293,7 @@ const Home: NextPage = () => {
         <title>Messenger Archive Viewer</title>
       </Head>
       
-      {/* Sidebar danh sách đoạn chat (Chuẩn Messenger Web) */}
+      {/* Sidebar danh sách đoạn chat */}
       <aside
         className={`flex w-[360px] flex-col border-r ${
           isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
@@ -350,7 +378,7 @@ const Home: NextPage = () => {
         </div>
       </aside>
 
-      {/* Khu vực khung chat chính (Chuẩn phong cách Facebook Messenger) */}
+      {/* Khu vực khung chat chính */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
@@ -377,7 +405,7 @@ const Home: NextPage = () => {
                 </div>
               </div>
 
-              {/* Danh sách tin nhắn phong cách bong bóng Messenger */}
+              {/* Danh sách tin nhắn */}
               <div
                 className={`flex-1 overflow-y-auto p-4 space-y-1.5 ${
                   isDark ? 'bg-[#242526]' : 'bg-white'
@@ -397,7 +425,7 @@ const Home: NextPage = () => {
                   const hasVideos = (msg.videos && msg.videos.length > 0) || embeddedVideoUri;
                   const hasShare = Boolean(msg.share?.link);
 
-                  // Nhóm tin nhắn liên tiếp từ cùng một người để thu gọn tên
+                  // Kiểm tra nhóm tin nhắn liên tiếp từ cùng một người
                   const prevMsg = idx > 0 ? arr[idx - 1] : null;
                   const prevSender = prevMsg ? decodeString(prevMsg.sender_name) : null;
                   const showSenderHeader = !isMe && sender !== prevSender;
@@ -409,9 +437,9 @@ const Home: NextPage = () => {
                         isMe ? 'items-end' : 'items-start'
                       } ${showSenderHeader ? 'mt-3' : 'mt-0.5'}`}
                     >
-                      {/* Tên người gửi chỉ hiện khi đổi người */}
+                      {/* Tên người dùng hiển thị trực quan, nổi bật, có màu sắc riêng biệt giống Messenger */}
                       {showSenderHeader && (
-                        <span className={`text-[11px] mb-1 ml-1 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        <span className={`text-[12px] mb-1 ml-1 font-bold tracking-wide ${getUserColor(sender, isDark)}`}>
                           {sender}
                         </span>
                       )}
@@ -494,7 +522,7 @@ const Home: NextPage = () => {
                 })}
               </div>
 
-              {/* Thanh nhập tin nhắn giả lập dưới cùng chuẩn Messenger Web */}
+              {/* Thanh nhập tin nhắn giả lập */}
               <div className={`p-3 border-t flex items-center gap-2 ${isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'}`}>
                 <div className={`flex-1 flex items-center rounded-full px-4 py-2 ${isDark ? 'bg-[#3a3b3c]' : 'bg-[#f0f2f5]'}`}>
                   <input
