@@ -62,7 +62,6 @@ export async function getChatrooms(
   if (!dirHandle) return [];
   const chatrooms: Chatroom[] = [];
 
-  // Helper để xử lý việc đọc nội dung một file json chat
   async function processJsonFile(fileEntry: FileSystemFileHandle, fallbackName: string) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,6 +73,7 @@ export async function getChatrooms(
       if (data.title) {
         chatroomName = decodeFBString(data.title);
       }
+
       if (data.participants && Array.isArray(data.participants)) {
         for (const p of data.participants) {
           if (p.name) {
@@ -81,8 +81,23 @@ export async function getChatrooms(
           }
         }
       }
-      if (data.messages && Array.isArray(data.messages)) {
-        messages.push(...data.messages);
+
+      // Hỗ trợ quét linh hoạt các tên trường chứa tin nhắn có thể có trong file JSON
+      const rawMessages = data.messages || data.msg || data.list || (Array.isArray(data) ? data : []);
+      if (Array.isArray(rawMessages)) {
+        for (const msg of rawMessages) {
+          messages.push({
+            sender_name: decodeFBString(msg.sender_name || msg.sender || ''),
+            timestamp_ms: msg.timestamp_ms || msg.timestamp || Date.now(),
+            content: decodeFBString(msg.content || msg.text || ''),
+            photos: msg.photos || [],
+            videos: msg.videos || [],
+            audio_files: msg.audio_files || [],
+            files: msg.files || [],
+            reactions: msg.reactions || [],
+            type: msg.type || 'Generic',
+          });
+        }
       }
 
       if (messages.length > 0) {
@@ -92,7 +107,7 @@ export async function getChatrooms(
         if (participantSet.size === 0) {
           for (const msg of messages) {
             if (msg.sender_name) {
-              participantSet.add(decodeFBString(msg.sender_name));
+              participantSet.add(msg.sender_name);
             }
           }
         }
@@ -116,17 +131,15 @@ export async function getChatrooms(
     }
   }
 
-  // Quét toàn bộ cấp độ trong thư mục được chọn
   for await (const entry of dirHandle.values()) {
-    if (entry.name === 'media' || entry.name === 'files' || entry.name === 'audio') {
+    if (['media', 'files', 'audio', 'photos', 'videos'].includes(entry.name)) {
       continue;
     }
 
     if (entry.kind === 'file' && entry.name.endsWith('.json')) {
-      // Trường hợp các file .json nằm ngay ở cấp gốc (H:/messages/*.json)
-      await processJsonFile(entry as FileSystemFileHandle, entry.name.replace('.json', ''));
+      const cleanName = entry.name.replace('.json', '').replace(/_\d+$/, '');
+      await processJsonFile(entry as FileSystemFileHandle, cleanName);
     } else if (entry.kind === 'directory') {
-      // Trường hợp các thư mục chứa chat (H:/messages/chat_name/)
       try {
         const subDir = await dirHandle.getDirectoryHandle(entry.name);
         for await (const subEntry of subDir.values()) {
