@@ -121,7 +121,11 @@ export default function MessageComponent({
   isMe: boolean;
   rootDir: FileSystemDirectoryHandle;
 }) {
-  const content = decodeString(message.content);
+  const rawContent = decodeString(message.content);
+
+  // Kiểm tra xem nội dung có chứa cú pháp video dạng: [Video: đường_dẫn] hay không
+  const videoMatch = rawContent.match(/\[Video:\s*([^\]]+)\]/);
+  const embeddedVideoPath = videoMatch ? videoMatch[1].trim() : null;
 
   const { data: imageURIs } = useSWR(
     () => (message.photos ? `/message/photo/${message.timestamp_ms}` : null),
@@ -144,17 +148,21 @@ export default function MessageComponent({
     }
   );
 
-  // Thêm xử lý SWR để đọc tệp video cục bộ qua File System Access API
+  // Xử lý tải tệp video (hỗ trợ cả thuộc tính videos lẫn trích xuất từ nội dung chuỗi)
+  const videoSourceKey = message.videos || embeddedVideoPath;
   const { data: videoURIs } = useSWR(
-    () => (message.videos ? `/message/video/${message.timestamp_ms}` : null),
+    () => (videoSourceKey ? `/message/video/${message.timestamp_ms}` : null),
     async () => {
-      if (!message.videos) {
-        return [];
+      let videoList: string[] = [];
+
+      if (message.videos) {
+        const rawVideos = Array.isArray(message.videos) ? message.videos : [message.videos];
+        videoList = rawVideos.map((v) => (typeof v === 'string' ? v : v.uri));
+      } else if (embeddedVideoPath) {
+        videoList = [embeddedVideoPath];
       }
-      
-      // Chuẩn hóa message.videos thành danh sách các chuỗi uri (hỗ trợ cả dạng string, mảng string hoặc mảng object)
-      const rawVideos = Array.isArray(message.videos) ? message.videos : [message.videos];
-      const videoList = rawVideos.map((v) => (typeof v === 'string' ? v : v.uri));
+
+      if (videoList.length === 0) return [];
 
       const videos = await Promise.all(
         videoList.map(async (videoUri: string) => {
@@ -178,7 +186,7 @@ export default function MessageComponent({
       isMe={isMe}
       message={message}
     >
-      {content}
+      {rawContent}
     </BaseMessage>
   );
 
@@ -197,14 +205,14 @@ export default function MessageComponent({
                   <img src={uri} alt={uri} />
                 </a>
               ))
-            : content}
+            : rawContent}
         </BaseMessage>
       </SRLWrapper>
     );
   }
 
-  // Thêm điều kiện xử lý hiển thị Video trực tiếp
-  if (message.videos) {
+  // Hiển thị trực tiếp video (kể cả khi lấy từ thuộc tính message.videos hoặc từ chuỗi nội dung)
+  if (message.videos || embeddedVideoPath) {
     return (
       <BaseMessage
         isFirst={isFirst}
@@ -222,7 +230,7 @@ export default function MessageComponent({
             />
           ))
         ) : (
-          content || '[Đang tải video...]'
+          rawContent
         )}
       </BaseMessage>
     );
@@ -259,7 +267,7 @@ export default function MessageComponent({
           rel='noreferrer'
           className='underline'
         >
-          {content || decodeString(message.share.share_text)}
+          {rawContent || decodeString(message.share.share_text)}
         </a>
       </BaseMessage>
     );
