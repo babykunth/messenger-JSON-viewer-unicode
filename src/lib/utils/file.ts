@@ -17,28 +17,6 @@ export async function findInboxFolder(
   dirHandle: FileSystemDirectoryHandle | null
 ): Promise<FileSystemDirectoryHandle | null> {
   if (!dirHandle) return null;
-
-  let hasValidContent = false;
-  for await (const entry of dirHandle.values()) {
-    if (entry.name === 'inbox' && entry.kind === 'directory') {
-      return entry;
-    }
-    if (entry.kind === 'directory' || (entry.kind === 'file' && entry.name.endsWith('.json'))) {
-      hasValidContent = true;
-    }
-  }
-
-  if (hasValidContent) {
-    return dirHandle;
-  }
-
-  for await (const entry of dirHandle.values()) {
-    if (entry.kind === 'directory') {
-      const found = await findInboxFolder(entry);
-      if (found) return found;
-    }
-  }
-
   return dirHandle;
 }
 
@@ -78,73 +56,86 @@ export async function readJsonFile<T>(fileHandle: FileSystemFileHandle): Promise
   return JSON.parse(text) as T;
 }
 
-// Giữ đúng tên hàm getChatrooms để khớp với file message.ts và hỗ trợ đọc trực tiếp H:/messages/
 export async function getChatrooms(
   dirHandle: FileSystemDirectoryHandle | null
 ): Promise<Chatroom[]> {
   if (!dirHandle) return [];
   const chatrooms: Chatroom[] = [];
 
+  // Helper để xử lý việc đọc nội dung một file json chat
+  async function processJsonFile(fileEntry: FileSystemFileHandle, fallbackName: string) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const data = await readJsonFile<any>(fileEntry);
+      const messages: Message[] = [];
+      const participantSet = new Set<string>();
+      let chatroomName = fallbackName;
+
+      if (data.title) {
+        chatroomName = decodeFBString(data.title);
+      }
+      if (data.participants && Array.isArray(data.participants)) {
+        for (const p of data.participants) {
+          if (p.name) {
+            participantSet.add(decodeFBString(p.name));
+          }
+        }
+      }
+      if (data.messages && Array.isArray(data.messages)) {
+        messages.push(...data.messages);
+      }
+
+      if (messages.length > 0) {
+        messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
+        const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
+
+        if (participantSet.size === 0) {
+          for (const msg of messages) {
+            if (msg.sender_name) {
+              participantSet.add(decodeFBString(msg.sender_name));
+            }
+          }
+        }
+
+        const participants: Participant[] = Array.from(participantSet).map((name) => ({
+          name,
+        }));
+
+        chatrooms.push({
+          id: fallbackName,
+          name: chatroomName,
+          title: chatroomName,
+          dirName: fallbackName,
+          lastSent: lastTimestamp,
+          participants,
+          messages,
+        });
+      }
+    } catch (e) {
+      console.error(`Lỗi đọc file ${fileEntry.name}:`, e);
+    }
+  }
+
+  // Quét toàn bộ cấp độ trong thư mục được chọn
   for await (const entry of dirHandle.values()) {
-    if (entry.kind === 'directory' && entry.name !== 'media') {
+    if (entry.name === 'media' || entry.name === 'files' || entry.name === 'audio') {
+      continue;
+    }
+
+    if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+      // Trường hợp các file .json nằm ngay ở cấp gốc (H:/messages/*.json)
+      await processJsonFile(entry as FileSystemFileHandle, entry.name.replace('.json', ''));
+    } else if (entry.kind === 'directory') {
+      // Trường hợp các thư mục chứa chat (H:/messages/chat_name/)
       try {
         const subDir = await dirHandle.getDirectoryHandle(entry.name);
-        const messages: Message[] = [];
-        const participantSet = new Set<string>();
-        let chatroomName = entry.name;
-
-        for await (const fileEntry of subDir.values()) {
-          if (fileEntry.kind === 'file' && fileEntry.name.endsWith('.json')) {
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const data = await readJsonFile<any>(fileEntry);
-              if (data.title) {
-                chatroomName = decodeFBString(data.title);
-              }
-              if (data.participants && Array.isArray(data.participants)) {
-                for (const p of data.participants) {
-                  if (p.name) {
-                    participantSet.add(decodeFBString(p.name));
-                  }
-                }
-              }
-              if (data.messages && Array.isArray(data.messages)) {
-                messages.push(...data.messages);
-              }
-            } catch (e) {
-              console.error(`Lỗi đọc file ${fileEntry.name}:`, e);
-            }
+        for await (const subEntry of subDir.values()) {
+          if (subEntry.kind === 'file' && subEntry.name.endsWith('.json')) {
+            await processJsonFile(subEntry as FileSystemFileHandle, entry.name);
           }
-        }
-
-        if (messages.length > 0) {
-          messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
-          const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
-
-          if (participantSet.size === 0) {
-            for (const msg of messages) {
-              if (msg.sender_name) {
-                participantSet.add(decodeFBString(msg.sender_name));
-              }
-            }
-          }
-
-          const participants: Participant[] = Array.from(participantSet).map((name) => ({
-            name,
-          }));
-
-          chatrooms.push({
-            id: entry.name,
-            name: chatroomName,
-            title: chatroomName,
-            dirName: entry.name,
-            lastSent: lastTimestamp,
-            participants,
-            messages,
-          });
         }
       } catch (err) {
-        console.error(`Không thể mở thư mục chat ${entry.name}:`, err);
+        console.error(`Không thể mở thư mục con ${entry.name}:`, err);
       }
     }
   }
