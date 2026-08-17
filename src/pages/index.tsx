@@ -2,8 +2,6 @@ import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
-import randomColor from 'randomcolor';
-
 import { findInboxFolder } from '@/lib/utils/file';
 import {
   decodeString,
@@ -14,7 +12,7 @@ import {
 } from '@/lib/utils/message';
 import { Chatroom, Message } from '@/types';
 
-// Hàm lấy FileHandle thông minh
+// Hàm lấy FileHandle thông minh từ URI tương đối của Messenger
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
   uri: string
@@ -23,16 +21,17 @@ async function getFileHandleFromUri(
     let parts = uri.split('/').filter(Boolean);
     const fileName = parts.pop();
     if (!fileName) return null;
-
     const rootName = rootDir.name.toLowerCase();
-    const firstMatchingIdx = parts.findIndex((p) => p.toLowerCase() === rootName);
+    const firstMatchingIdx = parts.findIndex(
+      (p) => p.toLowerCase() === rootName
+    );
     if (firstMatchingIdx !== -1) {
       parts = parts.slice(firstMatchingIdx + 1);
     } else {
       if (parts[0] === 'your_facebook_activity') parts.shift();
-      if (parts[0] === 'messages' && rootName !== 'your_facebook_activity') parts.shift();
+      if (parts[0] === 'messages' && rootName !== 'your_facebook_activity')
+        parts.shift();
     }
-
     let currentDir = rootDir;
     for (const part of parts) {
       try {
@@ -41,7 +40,6 @@ async function getFileHandleFromUri(
         break;
       }
     }
-
     return await currentDir.getFileHandle(fileName);
   } catch {
     try {
@@ -56,7 +54,7 @@ async function getFileHandleFromUri(
   return null;
 }
 
-// Component FsImage với hỗ trợ Modal phóng to
+// Component FsImage hiển thị ảnh cục bộ
 const FsImage = ({
   rootDir,
   uri,
@@ -73,17 +71,14 @@ const FsImage = ({
   useEffect(() => {
     let isMounted = true;
     let objectUrl: string | null = null;
-
     async function loadImage() {
       if (!rootDir || !uri) {
         setError(true);
         return;
       }
-
       try {
         const fileHandle = await getFileHandleFromUri(rootDir, uri);
         if (!fileHandle) throw new Error('File not found');
-
         const file = await fileHandle.getFile();
         if (isMounted) {
           objectUrl = URL.createObjectURL(file);
@@ -94,9 +89,7 @@ const FsImage = ({
         if (isMounted) setError(true);
       }
     }
-
     loadImage();
-
     return () => {
       isMounted = false;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -110,7 +103,6 @@ const FsImage = ({
       </span>
     );
   }
-
   if (!imgUrl) {
     return (
       <span className='text-xs text-gray-500 dark:text-gray-400 italic block mt-1 animate-pulse'>
@@ -118,7 +110,6 @@ const FsImage = ({
       </span>
     );
   }
-
   return (
     <>
       <img
@@ -127,7 +118,6 @@ const FsImage = ({
         onClick={() => setIsOpen(true)}
         className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-300 dark:border-gray-700 mt-1 shadow-md cursor-pointer hover:opacity-90 transition-opacity'
       />
-
       {isOpen && (
         <div
           className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4'
@@ -136,7 +126,7 @@ const FsImage = ({
           <div className='relative max-w-full max-h-full flex items-center justify-center'>
             <button
               onClick={() => setIsOpen(false)}
-              className='absolute -top-10 right-0 text-white text-2xl font-bold bg-gray-800/80 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center'
+              className='absolute -top-10 right-0 text-white text-2xl font-bold bg-gray-800/85 hover:bg-gray-700 w-8 h-8 rounded-full flex items-center justify-center'
               title='Đóng'
             >
               ✕
@@ -154,14 +144,78 @@ const FsImage = ({
   );
 };
 
+// Component FsVideo mới dùng để tải và phát trực tiếp video từ thư mục cục bộ
+const FsVideo = ({
+  rootDir,
+  uri,
+}: {
+  rootDir: FileSystemDirectoryHandle | null;
+  uri: string;
+}) => {
+  const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    let objectUrl: string | null = null;
+    async function loadVideo() {
+      if (!rootDir || !uri) {
+        setError(true);
+        return;
+      }
+      try {
+        const fileHandle = await getFileHandleFromUri(rootDir, uri);
+        if (!fileHandle) throw new Error('Video not found');
+        const file = await fileHandle.getFile();
+        if (isMounted) {
+          objectUrl = URL.createObjectURL(file);
+          setVideoUrl(objectUrl);
+          setError(false);
+        }
+      } catch (err) {
+        if (isMounted) setError(true);
+      }
+    }
+    loadVideo();
+    return () => {
+      isMounted = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [rootDir, uri]);
+
+  if (error) {
+    return (
+      <span className='text-xs text-blue-600 dark:text-blue-400 underline block mt-1 break-all font-medium'>
+        🎥 [Video: {uri}]
+      </span>
+    );
+  }
+  if (!videoUrl) {
+    return (
+      <span className='text-xs text-gray-500 dark:text-gray-400 italic block mt-1 animate-pulse'>
+        🎥 Đang tải video...
+      </span>
+    );
+  }
+  return (
+    <video
+      controls
+      className='max-h-80 w-full rounded-lg object-contain bg-black mt-1 shadow-md'
+      src={videoUrl}
+    />
+  );
+};
+
 const Home: NextPage = () => {
-  const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(null);
-  const [inboxDir, setInboxDir] = useState<FileSystemDirectoryHandle | null>(null);
+  const [directory, setDirectory] = useState<FileSystemDirectoryHandle | null>(
+    null
+  );
+  const [inboxDir, setInboxDir] = useState<FileSystemDirectoryHandle | null>(
+    null
+  );
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [isMembersOpen, setIsMembersOpen] = useState(false);
-  const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   const handleOpenFolder = async () => {
     try {
@@ -172,12 +226,11 @@ const Home: NextPage = () => {
         setInboxDir(inbox);
       }
     } catch (err) {
-      // eslint-disable-next-line no-console
       console.error('Lỗi khi chọn thư mục:', err);
     }
   };
 
-  const { data: chats, isValidating: isLoadingChats } = useSWR<Chatroom[]>(
+  const { data: chats } = useSWR<Chatroom[]>(
     () => (inboxDir?.name ? ['chats', inboxDir.name] : null),
     () => loadChats(inboxDir)
   );
@@ -201,33 +254,51 @@ const Home: NextPage = () => {
   }, [chats, search]);
 
   const currentMessage = useCurrentMessage(chats || null, selectedChatId);
-  const chatStatistic = useChatStatistics(currentMessage);
-
   const isDark = theme === 'dark';
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden font-sans ${isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-100 text-gray-900'}`}>
+    <div
+      className={`flex h-screen w-screen overflow-hidden font-sans ${
+        isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-100 text-gray-900'
+      }`}
+    >
       <Head>
         <title>Messenger Archive Viewer</title>
       </Head>
-
-      {/* Sidebar - Cột bên trái */}
-      <aside className={`flex w-80 flex-col border-r ${isDark ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'}`}>
-        <div className={`flex items-center justify-between p-4 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+      
+      {/* Sidebar bên trái */}
+      <aside
+        className={`flex w-80 flex-col border-r ${
+          isDark ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'
+        }`}
+      >
+        <div
+          className={`flex items-center justify-between p-4 border-b ${
+            isDark ? 'border-gray-800' : 'border-gray-200'
+          }`}
+        >
           <h1 className='text-base font-bold truncate'>
             {directory ? `${directory.name}'s history` : 'Messenger Viewer'}
           </h1>
           <div className='flex gap-1.5'>
             <button
               onClick={handleOpenFolder}
-              className={`p-2 rounded-lg transition-colors text-base ${isDark ? 'hover:bg-gray-800 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}
+              className={`p-2 rounded-lg transition-colors text-base ${
+                isDark
+                  ? 'hover:bg-gray-800 text-gray-200'
+                  : 'hover:bg-gray-100 text-gray-700'
+              }`}
               title='Chọn thư mục'
             >
               📁
             </button>
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              className={`p-2 rounded-lg transition-colors text-base ${isDark ? 'hover:bg-gray-800 text-gray-200' : 'hover:bg-gray-100 text-gray-700'}`}
+              className={`p-2 rounded-lg transition-colors text-base ${
+                isDark
+                  ? 'hover:bg-gray-800 text-gray-200'
+                  : 'hover:bg-gray-100 text-gray-700'
+              }`}
               title='Đổi giao diện'
             >
               {isDark ? '☀️' : '🌙'}
@@ -235,11 +306,10 @@ const Home: NextPage = () => {
           </div>
         </div>
 
-        {/* Ô tìm kiếm */}
         <div className='p-3'>
           <input
             type='text'
-            placeholder='Tìm kiếm người dùng...'
+            placeholder='Tìm kiếm cuộc trò chuyện...'
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className={`w-full px-3 py-2 text-sm rounded-lg outline-none transition-all ${
@@ -250,40 +320,43 @@ const Home: NextPage = () => {
           />
         </div>
 
-        {/* Danh sách các cuộc trò chuyện */}
         <div className='flex-1 overflow-y-auto px-2 space-y-1'>
           {!directory && (
-            <div className={`p-4 text-center text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+            <div
+              className={`p-4 text-center text-sm ${
+                isDark ? 'text-gray-400' : 'text-gray-500'
+              }`}
+            >
               Vui lòng nhấn vào biểu tượng thư mục 📁 để tải dữ liệu Messenger.
             </div>
           )}
-
-          {isLoadingChats && (
-            <div className={`p-4 text-center text-sm animate-pulse ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-              Đang tải danh sách cuộc trò chuyện...
-            </div>
-          )}
-
           {filteredChats.map((chat) => {
             const id = chat.id || chat.dirName;
             const isSelected = selectedChatId === id;
-
             return (
               <div
                 key={id}
                 onClick={() => setSelectedChatId(id)}
                 className={`cursor-pointer rounded-xl p-3 transition-colors ${
                   isSelected
-                    ? isDark
-                      ? 'bg-blue-600 text-white font-medium shadow-sm'
-                      : 'bg-blue-600 text-white font-medium shadow-sm'
+                    ? 'bg-blue-600 text-white font-medium shadow-sm'
                     : isDark
                     ? 'hover:bg-gray-800/80 text-gray-200'
                     : 'hover:bg-gray-100 text-gray-800'
                 }`}
               >
-                <p className='font-semibold truncate text-sm'>{chat.title || chat.name}</p>
-                <p className={`text-xs truncate mt-0.5 ${isSelected ? 'text-blue-100' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                <p className='font-semibold truncate text-sm'>
+                  {chat.title || chat.name}
+                </p>
+                <p
+                  className={`text-xs truncate mt-0.5 ${
+                    isSelected
+                      ? 'text-blue-100'
+                      : isDark
+                      ? 'text-gray-400'
+                      : 'text-gray-500'
+                  }`}
+                >
                   {chat.dirName}
                 </p>
               </div>
@@ -292,35 +365,69 @@ const Home: NextPage = () => {
         </div>
       </aside>
 
-      {/* Main Chat Area - Khu vực khung chat giữa */}
+      {/* Khu vực khung chat chính */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
-            <div className={`flex flex-1 flex-col overflow-hidden border-r ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
-              <div className={`flex items-center justify-between border-b p-4 shadow-sm ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'}`}>
+            <div
+              className={`flex flex-1 flex-col overflow-hidden border-r ${
+                isDark ? 'border-gray-800' : 'border-gray-200'
+              }`}
+            >
+              <div
+                className={`flex items-center justify-between border-b p-4 shadow-sm ${
+                  isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'
+                }`}
+              >
                 <div>
-                  <h2 className='text-lg font-bold'>{currentMessage.title || currentMessage.name}</h2>
-                  <p className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{currentMessage.messages.length} tin nhắn</p>
+                  <h2 className='text-lg font-bold'>
+                    {currentMessage.title || currentMessage.name}
+                  </h2>
+                  <p
+                    className={`text-xs font-medium ${
+                      isDark ? 'text-gray-400' : 'text-gray-500'
+                    }`}
+                  >
+                    {currentMessage.messages.length} tin nhắn
+                  </p>
                 </div>
               </div>
 
               {/* Danh sách tin nhắn */}
-              <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${isDark ? 'bg-gray-900' : 'bg-gray-50'}`}>
+              <div
+                className={`flex-1 overflow-y-auto p-4 space-y-4 ${
+                  isDark ? 'bg-gray-900' : 'bg-gray-50'
+                }`}
+              >
                 {currentMessage.messages.map((msg: any, idx: number) => {
                   const sender = decodeString(msg.sender_name);
                   const isMe = myName ? sender === myName : false;
-                  const hasContent = Boolean(msg.content);
+                  const decodedContent = decodeString(msg.content || '');
+                  
+                  // Kiểm tra trích xuất đường dẫn video từ nội dung chuỗi (định dạng [Video: đường_dẫn])
+                  const videoMatch = decodedContent.match(/\[Video:\s*([^\]]+)\]/);
+                  const embeddedVideoUri = videoMatch ? videoMatch[1].trim() : null;
+
+                  const hasContent = Boolean(msg.content) && !embeddedVideoUri;
                   const hasPhotos = msg.photos && msg.photos.length > 0;
                   const hasSticker = Boolean(msg.sticker);
-                  const hasVideos = msg.videos && msg.videos.length > 0;
+                  const hasVideos = (msg.videos && msg.videos.length > 0) || embeddedVideoUri;
                   const hasShare = Boolean(msg.share?.link);
 
                   return (
                     <div
                       key={idx}
-                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                      className={`flex flex-col ${
+                        isMe ? 'items-end' : 'items-start'
+                      }`}
                     >
-                      <span className={`text-xs mb-1 font-medium ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>{sender}</span>
+                      <span
+                        className={`text-xs mb-1 font-medium ${
+                          isDark ? 'text-gray-400' : 'text-gray-600'
+                        }`}
+                      >
+                        {sender}
+                      </span>
                       <div
                         className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed ${
                           isMe
@@ -330,10 +437,10 @@ const Home: NextPage = () => {
                             : 'bg-white text-gray-900 rounded-bl-none border border-gray-200'
                         }`}
                       >
-                        {/* Văn bản */}
+                        {/* Nội dung chữ bình thường */}
                         {hasContent && (
                           <p className='whitespace-pre-wrap break-words'>
-                            {decodeString(msg.content)}
+                            {decodedContent}
                           </p>
                         )}
 
@@ -353,127 +460,64 @@ const Home: NextPage = () => {
 
                         {/* Sticker */}
                         {hasSticker && (
-                          <div className={`mt-1 italic text-xs flex items-center gap-1 ${isMe ? 'text-yellow-200' : isDark ? 'text-yellow-400' : 'text-yellow-600'}`}>
+                          <div
+                            className={`mt-1 italic text-xs flex items-center gap-1 ${
+                              isMe
+                                ? 'text-yellow-200'
+                                : isDark
+                                ? 'text-yellow-400'
+                                : 'text-yellow-600'
+                            }`}
+                          >
                             <span>🎨 [Sticker: {msg.sticker.uri}]</span>
                           </div>
                         )}
 
-                        {/* Video */}
+                        {/* Video trực tiếp (Xử lý cả mảng msg.videos hoặc chuỗi embeddedVideoUri trong content) */}
                         {hasVideos && (
-                          <div className='mt-1 flex flex-col gap-1'>
-                            {msg.videos.map((v: any, vIdx: number) => (
-                              <span key={vIdx} className={`text-xs underline break-all font-medium ${isMe ? 'text-blue-100' : isDark ? 'text-blue-400' : 'text-blue-600'}`}>
-                                🎥 [Video: {v.uri}]
-                              </span>
-                            ))}
+                          <div className='mt-2 flex flex-col gap-2'>
+                            {msg.videos ? (
+                              msg.videos.map((v: any, vIdx: number) => (
+                                <FsVideo
+                                  key={vIdx}
+                                  rootDir={directory}
+                                  uri={typeof v === 'string' ? v : v.uri}
+                                />
+                              ))
+                            ) : embeddedVideoUri ? (
+                              <FsVideo
+                                rootDir={directory}
+                                uri={embeddedVideoUri}
+                              />
+                            ) : null}
                           </div>
                         )}
 
                         {/* Share link */}
                         {hasShare && (
-                          <a
-                            href={msg.share.link}
-                            target='_blank'
-                            rel='noreferrer'
-                            className={`mt-1 block text-xs underline break-all font-medium ${isMe ? 'text-blue-100' : isDark ? 'text-blue-400' : 'text-blue-600'}`}
-                          >
-                            🔗 {msg.share.link}
-                          </a>
-                        )}
-
-                        {/* Tin nhắn hệ thống fallback */}
-                        {!hasContent && !hasPhotos && !hasSticker && !hasVideos && !hasShare && (
-                          <span className={`italic text-xs ${isMe ? 'text-blue-100' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                            [Tin nhắn hệ thống]
-                          </span>
+                          <div className='mt-1'>
+                            <a
+                              href={msg.share.link}
+                              target='_blank'
+                              rel='noreferrer'
+                              className='underline text-blue-300 break-all'
+                            >
+                              {decodeString(
+                                msg.share.share_text || msg.share.link
+                              )}
+                            </a>
+                          </div>
                         )}
                       </div>
-                      <span className={`text-[10px] mt-1 font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-                        {new Date(msg.timestamp_ms).toLocaleString()}
-                      </span>
                     </div>
                   );
                 })}
               </div>
             </div>
-
-            {/* Right Info Panel - Cột thông tin bên phải */}
-            <div className={`w-80 overflow-y-auto p-4 space-y-4 border-l ${isDark ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'}`}>
-              {/* Box Thành viên */}
-              <div className={`border rounded-xl overflow-hidden shadow-sm ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
-                <button
-                  onClick={() => setIsMembersOpen(!isMembersOpen)}
-                  className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold transition-colors ${
-                    isDark ? 'hover:bg-gray-800 text-gray-200' : 'hover:bg-gray-100 text-gray-800'
-                  }`}
-                >
-                  <span>Thành viên</span>
-                  <span className='text-xs'>{isMembersOpen ? '▲' : '▼'}</span>
-                </button>
-                {isMembersOpen && (
-                  <div className={`p-4 space-y-2.5 text-sm border-t ${isDark ? 'border-gray-800 bg-gray-900 text-gray-300' : 'border-gray-200 bg-white text-gray-700'}`}>
-                    {currentMessage.participants?.map((part: any) => (
-                      <div key={part.name} className='flex items-center gap-2.5'>
-                        <div
-                          className='h-3 w-3 rounded-full flex-shrink-0'
-                          style={{
-                            backgroundColor: randomColor({
-                              seed: part.name,
-                              luminosity: theme,
-                            }),
-                          }}
-                        />
-                        <span className='truncate font-medium'>{part.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Box Thống kê */}
-              {chatStatistic && (
-                <div className={`border rounded-xl overflow-hidden shadow-sm ${isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-gray-50'}`}>
-                  <button
-                    onClick={() => setIsStatsOpen(!isStatsOpen)}
-                    className={`w-full px-4 py-3 flex justify-between items-center text-sm font-semibold transition-colors ${
-                      isDark ? 'hover:bg-gray-800 text-gray-200' : 'hover:bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    <span>Thống kê</span>
-                    <span className='text-xs'>{isStatsOpen ? '▲' : '▼'}</span>
-                  </button>
-                  {isStatsOpen && (
-                    <div className={`p-4 space-y-2.5 text-sm border-t ${isDark ? 'border-gray-800 bg-gray-900 text-gray-300' : 'border-gray-200 bg-white text-gray-700'}`}>
-                      <div className='flex justify-between items-center'>
-                        <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Tổng số tin nhắn:</span>
-                        <span className='font-semibold'>{chatStatistic.messageCount}</span>
-                      </div>
-                      {chatStatistic.createdAt > 0 && (
-                        <div className='flex justify-between items-center'>
-                          <span className={isDark ? 'text-gray-400' : 'text-gray-500'}>Ngày bắt đầu:</span>
-                          <span className='font-semibold'>{new Date(chatStatistic.createdAt).toLocaleDateString()}</span>
-                        </div>
-                      )}
-                      <div className={`mt-3 font-semibold border-t pt-2.5 ${isDark ? 'text-gray-200 border-gray-800' : 'text-gray-900 border-gray-200'}`}>
-                        Top gửi tin:
-                      </div>
-                      {Object.entries(chatStatistic.countInfo || {})
-                        .sort(([, a], [, b]) => (b as number) - (a as number))
-                        .map(([name, count]) => (
-                          <div key={name} className='flex justify-between items-center text-xs'>
-                            <span className='truncate w-32 font-medium'>{name}</span>
-                            <span className={`font-semibold ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{count as number}</span>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
           </div>
         ) : (
-          <div className={`flex h-full items-center justify-center text-sm font-medium ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
-            Please select chat to view
+          <div className='flex flex-1 items-center justify-center text-sm text-gray-500'>
+            Chọn một đoạn chat để xem lịch sử tin nhắn
           </div>
         )}
       </main>
