@@ -17,7 +17,29 @@ export async function findInboxFolder(
   dirHandle: FileSystemDirectoryHandle | null
 ): Promise<FileSystemDirectoryHandle | null> {
   if (!dirHandle) return null;
-  return dirHandle;
+  if (dirHandle.name === 'inbox') {
+    return dirHandle;
+  }
+
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind === 'directory') {
+      if (entry.name === 'inbox') {
+        return entry;
+      }
+      if (entry.name === 'messages') {
+        try {
+          const inbox = await entry.getDirectoryHandle('inbox');
+          return inbox;
+        } catch {
+          // Bỏ qua nếu không thấy
+        }
+      }
+      const found = await findInboxFolder(entry);
+      if (found) return found;
+    }
+  }
+
+  return null;
 }
 
 export async function getFileHandleRecursively(
@@ -26,28 +48,21 @@ export async function getFileHandleRecursively(
 ): Promise<FileSystemFileHandle | null> {
   if (!dirHandle) return null;
   const parts = relativePath.split('/').filter(Boolean);
-  let currentDir: FileSystemDirectoryHandle | FileSystemFileHandle = dirHandle;
+  let currentDir = dirHandle;
 
   for (let i = 0; i < parts.length - 1; i++) {
     try {
-      if (currentDir.kind === 'directory') {
-        currentDir = await currentDir.getDirectoryHandle(parts[i]);
-      } else {
-        return null;
-      }
+      currentDir = await currentDir.getDirectoryHandle(parts[i]);
     } catch {
       return null;
     }
   }
 
   try {
-    if (currentDir.kind === 'directory') {
-      return await currentDir.getFileHandle(parts[parts.length - 1]);
-    }
+    return await currentDir.getFileHandle(parts[parts.length - 1]);
   } catch {
     return null;
   }
-  return null;
 }
 
 export async function readJsonFile<T>(fileHandle: FileSystemFileHandle): Promise<T> {
@@ -62,39 +77,33 @@ export async function getChatrooms(
   if (!dirHandle) return [];
   const chatrooms: Chatroom[] = [];
 
-  async function processJsonFile(fileEntry: FileSystemFileHandle, fallbackName: string) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const data = await readJsonFile<any>(fileEntry);
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind === 'directory') {
       const messages: Message[] = [];
       const participantSet = new Set<string>();
-      let chatroomName = fallbackName;
+      let chatroomName = entry.name;
 
-      if (data.title) {
-        chatroomName = decodeFBString(data.title);
-      }
-
-      if (data.participants && Array.isArray(data.participants)) {
-        for (const p of data.participants) {
-          if (p.name) {
-            participantSet.add(decodeFBString(p.name));
+      for await (const fileEntry of entry.values()) {
+        if (fileEntry.kind === 'file' && fileEntry.name.endsWith('.json')) {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const data = await readJsonFile<any>(fileEntry);
+            if (data.title) {
+              chatroomName = decodeFBString(data.title);
+            }
+            if (data.participants && Array.isArray(data.participants)) {
+              for (const p of data.participants) {
+                if (p.name) {
+                  participantSet.add(decodeFBString(p.name));
+                }
+              }
+            }
+            if (data.messages && Array.isArray(data.messages)) {
+              messages.push(...data.messages);
+            }
+          } catch (e) {
+            console.error(`Lỗi đọc file ${fileEntry.name}:`, e);
           }
-        }
-      }
-
-      const rawMessages = data.messages || data.msg || data.list || (Array.isArray(data) ? data : []);
-      if (Array.isArray(rawMessages)) {
-        for (const msg of rawMessages) {
-          messages.push({
-            sender_name: decodeFBString(msg.sender_name || msg.sender || ''),
-            timestamp_ms: msg.timestamp_ms || msg.timestamp || Date.now(),
-            content: decodeFBString(msg.content || msg.text || ''),
-            photos: msg.photos || [],
-            audio_files: msg.audio_files || [],
-            files: msg.files || [],
-            reactions: msg.reactions || [],
-            type: msg.type || 'Generic',
-          } as Message);
         }
       }
 
@@ -102,10 +111,11 @@ export async function getChatrooms(
         messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
         const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
 
+        // Nếu file JSON không có field participants, tự lấy danh sách người gửi
         if (participantSet.size === 0) {
           for (const msg of messages) {
             if (msg.sender_name) {
-              participantSet.add(msg.sender_name);
+              participantSet.add(decodeFBString(msg.sender_name));
             }
           }
         }
@@ -115,38 +125,14 @@ export async function getChatrooms(
         }));
 
         chatrooms.push({
-          id: fallbackName,
+          id: entry.name,
           name: chatroomName,
           title: chatroomName,
-          dirName: fallbackName,
+          dirName: entry.name,
           lastSent: lastTimestamp,
           participants,
           messages,
         });
-      }
-    } catch (e) {
-      console.error(`Lỗi đọc file ${fileEntry.name}:`, e);
-    }
-  }
-
-  for await (const entry of dirHandle.values()) {
-    if (['media', 'files', 'audio', 'photos', 'videos'].includes(entry.name)) {
-      continue;
-    }
-
-    if (entry.kind === 'file' && entry.name.endsWith('.json')) {
-      const cleanName = entry.name.replace('.json', '').replace(/_\d+$/, '');
-      await processJsonFile(entry as FileSystemFileHandle, cleanName);
-    } else if (entry.kind === 'directory') {
-      try {
-        const subDir = await dirHandle.getDirectoryHandle(entry.name);
-        for await (const subEntry of subDir.values()) {
-          if (subEntry.kind === 'file' && subEntry.name.endsWith('.json')) {
-            await processJsonFile(subEntry as FileSystemFileHandle, entry.name);
-          }
-        }
-      } catch (err) {
-        console.error(`Không thể mở thư mục con ${entry.name}:`, err);
       }
     }
   }
