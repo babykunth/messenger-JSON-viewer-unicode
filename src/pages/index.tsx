@@ -1,5 +1,3 @@
-import type { NextPage } from 'next';
-import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useSWR from 'swr';
