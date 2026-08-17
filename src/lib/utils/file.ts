@@ -21,50 +21,25 @@ export async function findInboxFolder(
     return dirHandle;
   }
 
-  // 1. Kiểm tra nhanh xem thư mục hiện tại có phải là dạng chứa các thư mục chat trực tiếp không (cấu trúc đơn giản H:/messages/)
-  let hasChatSubdirs = false;
+  // Kiểm tra xem thư mục hiện tại có chứa thư mục 'inbox' hoặc các thư mục chat trực tiếp không
   for await (const entry of dirHandle.values()) {
     if (entry.kind === 'directory') {
       if (entry.name === 'inbox') {
-        return entry; // Tìm thấy inbox theo chuẩn Facebook cũ
+        return entry;
       }
       if (entry.name === 'messages') {
         try {
           const inbox = await entry.getDirectoryHandle('inbox');
           return inbox;
         } catch {
-          // Bỏ qua nếu không thấy
+          // Bỏ qua
         }
-      }
-      // Kiểm tra nếu thư mục con này có chứa file .json bên trong (đặc trưng của thư mục chat)
-      try {
-        const subDir = await dirHandle.getDirectoryHandle(entry.name);
-        for await (const subEntry of subDir.values()) {
-          if (subEntry.kind === 'file' && subEntry.name.endsWith('.json')) {
-            hasChatSubdirs = true;
-            break;
-          }
-        }
-      } catch {
-        // Bỏ qua lỗi truy cập
       }
     }
   }
 
-  // Nếu thư mục hiện tại chứa các thư mục chat trực tiếp, trả về chính nó (hỗ trợ H:/messages/)
-  if (hasChatSubdirs) {
-    return dirHandle;
-  }
-
-  // 2. Dự phòng: Duyệt sâu vào các thư mục con khác
-  for await (const entry of dirHandle.values()) {
-    if (entry.kind === 'directory' && entry.name !== 'inbox' && entry.name !== 'messages') {
-      const found = await findInboxFolder(entry);
-      if (found) return found;
-    }
-  }
-
-  return null;
+  // Nếu chọn thẳng thư mục 'messages' (chứa các thư mục chat ở ngay cấp gốc)
+  return dirHandle;
 }
 
 export async function getFileHandleRecursively(
@@ -102,7 +77,18 @@ export async function getChatrooms(
   if (!dirHandle) return [];
   const chatrooms: Chatroom[] = [];
 
-  for await (const entry of dirHandle.values()) {
+  // Xác định xem thư mục truyền vào là 'inbox' hay là thư mục 'messages' trực tiếp
+  let targetDir = dirHandle;
+  try {
+    const inboxCheck = await dirHandle.getDirectoryHandle('inbox');
+    if (inboxCheck) {
+      targetDir = inboxCheck;
+    }
+  } catch {
+    // Không có thư mục con inbox, giữ nguyên targetDir là chính nó (phục vụ H:/messages/)
+  }
+
+  for await (const entry of targetDir.values()) {
     if (entry.kind === 'directory') {
       const messages: Message[] = [];
       const participantSet = new Set<string>();
@@ -136,7 +122,6 @@ export async function getChatrooms(
         messages.sort((a, b) => a.timestamp_ms - b.timestamp_ms);
         const lastTimestamp = messages[messages.length - 1]?.timestamp_ms || 0;
 
-        // Nếu file JSON không có field participants, tự lấy danh sách người gửi
         if (participantSet.size === 0) {
           for (const msg of messages) {
             if (msg.sender_name) {
