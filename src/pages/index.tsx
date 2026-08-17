@@ -7,10 +7,9 @@ import {
   decodeString,
   getMyselfName,
   loadChats,
-  useChatStatistics,
   useCurrentMessage,
 } from '@/lib/utils/message';
-import { Chatroom, Message } from '@/types';
+import { Chatroom } from '@/types';
 
 // Hàm lấy FileHandle thông minh từ URI tương đối của Messenger
 async function getFileHandleFromUri(
@@ -98,14 +97,14 @@ const FsImage = ({
 
   if (error) {
     return (
-      <span className='text-xs text-blue-600 dark:text-blue-400 underline block mt-1 break-all font-medium'>
+      <span className='text-xs text-blue-400 underline block mt-1 break-all font-medium'>
         📷 [Photo: {uri}]
       </span>
     );
   }
   if (!imgUrl) {
     return (
-      <span className='text-xs text-gray-500 dark:text-gray-400 italic block mt-1 animate-pulse'>
+      <span className='text-xs text-gray-400 italic block mt-1 animate-pulse'>
         📷 Đang tải ảnh...
       </span>
     );
@@ -116,7 +115,7 @@ const FsImage = ({
         src={imgUrl}
         alt={alt}
         onClick={() => setIsOpen(true)}
-        className='max-w-xs max-h-80 rounded-lg object-cover border border-gray-300 dark:border-gray-700 mt-1 shadow-md cursor-pointer hover:opacity-90 transition-opacity'
+        className='max-w-xs max-h-80 rounded-2xl object-cover mt-1 shadow-sm cursor-pointer hover:opacity-95 transition-opacity'
       />
       {isOpen && (
         <div
@@ -144,7 +143,7 @@ const FsImage = ({
   );
 };
 
-// Component FsVideo mới dùng để tải và phát trực tiếp video từ thư mục cục bộ
+// Component FsVideo tải và phát trực tiếp video từ thư mục cục bộ
 const FsVideo = ({
   rootDir,
   uri,
@@ -185,14 +184,14 @@ const FsVideo = ({
 
   if (error) {
     return (
-      <span className='text-xs text-blue-600 dark:text-blue-400 underline block mt-1 break-all font-medium'>
+      <span className='text-xs text-blue-400 underline block mt-1 break-all font-medium'>
         🎥 [Video: {uri}]
       </span>
     );
   }
   if (!videoUrl) {
     return (
-      <span className='text-xs text-gray-500 dark:text-gray-400 italic block mt-1 animate-pulse'>
+      <span className='text-xs text-gray-400 italic block mt-1 animate-pulse'>
         🎥 Đang tải video...
       </span>
     );
@@ -200,7 +199,7 @@ const FsVideo = ({
   return (
     <video
       controls
-      className='max-h-80 w-full rounded-lg object-contain bg-black mt-1 shadow-md'
+      className='max-h-80 w-full rounded-2xl object-contain bg-black mt-1 shadow-sm'
       src={videoUrl}
     />
   );
@@ -259,45 +258,35 @@ const Home: NextPage = () => {
   return (
     <div
       className={`flex h-screen w-screen overflow-hidden font-sans ${
-        isDark ? 'bg-gray-900 text-gray-100' : 'bg-gray-100 text-gray-900'
+        isDark ? 'bg-[#242526] text-[#e4e6eb]' : 'bg-white text-black'
       }`}
     >
       <Head>
         <title>Messenger Archive Viewer</title>
       </Head>
       
-      {/* Sidebar bên trái */}
+      {/* Sidebar danh sách đoạn chat (Chuẩn Messenger Web) */}
       <aside
-        className={`flex w-80 flex-col border-r ${
-          isDark ? 'border-gray-800 bg-gray-950' : 'border-gray-200 bg-white'
+        className={`flex w-[360px] flex-col border-r ${
+          isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
         }`}
       >
-        <div
-          className={`flex items-center justify-between p-4 border-b ${
-            isDark ? 'border-gray-800' : 'border-gray-200'
-          }`}
-        >
-          <h1 className='text-base font-bold truncate'>
-            {directory ? `${directory.name}'s history` : 'Messenger Viewer'}
-          </h1>
-          <div className='flex gap-1.5'>
+        <div className='flex items-center justify-between px-4 pt-4 pb-2'>
+          <h1 className='text-2xl font-bold tracking-tight'>Đoạn chat</h1>
+          <div className='flex gap-1'>
             <button
               onClick={handleOpenFolder}
-              className={`p-2 rounded-lg transition-colors text-base ${
-                isDark
-                  ? 'hover:bg-gray-800 text-gray-200'
-                  : 'hover:bg-gray-100 text-gray-700'
+              className={`p-2.5 rounded-full transition-colors ${
+                isDark ? 'hover:bg-[#3a3b3c] text-gray-200' : 'hover:bg-gray-100 text-gray-700'
               }`}
-              title='Chọn thư mục'
+              title='Chọn thư mục dữ liệu'
             >
               📁
             </button>
             <button
               onClick={() => setTheme(isDark ? 'light' : 'dark')}
-              className={`p-2 rounded-lg transition-colors text-base ${
-                isDark
-                  ? 'hover:bg-gray-800 text-gray-200'
-                  : 'hover:bg-gray-100 text-gray-700'
+              className={`p-2.5 rounded-full transition-colors ${
+                isDark ? 'hover:bg-[#3a3b3c] text-gray-200' : 'hover:bg-gray-100 text-gray-700'
               }`}
               title='Đổi giao diện'
             >
@@ -306,28 +295,29 @@ const Home: NextPage = () => {
           </div>
         </div>
 
-        <div className='p-3'>
-          <input
-            type='text'
-            placeholder='Tìm kiếm cuộc trò chuyện...'
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={`w-full px-3 py-2 text-sm rounded-lg outline-none transition-all ${
-              isDark
-                ? 'bg-gray-800 text-white placeholder-gray-400 border border-gray-700 focus:border-blue-500'
-                : 'bg-gray-50 text-gray-900 placeholder-gray-500 border border-gray-300 focus:border-blue-500 focus:bg-white'
+        <div className='px-3 py-2'>
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-full ${
+              isDark ? 'bg-[#3a3b3c]' : 'bg-[#f0f2f5]'
             }`}
-          />
+          >
+            <span className='text-gray-400 text-sm'>🔍</span>
+            <input
+              type='text'
+              placeholder='Tìm kiếm trên Messenger'
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={`w-full bg-transparent text-sm outline-none ${
+                isDark ? 'text-white placeholder-gray-400' : 'text-gray-900 placeholder-gray-500'
+              }`}
+            />
+          </div>
         </div>
 
-        <div className='flex-1 overflow-y-auto px-2 space-y-1'>
+        <div className='flex-1 overflow-y-auto px-2 space-y-0.5 mt-1'>
           {!directory && (
-            <div
-              className={`p-4 text-center text-sm ${
-                isDark ? 'text-gray-400' : 'text-gray-500'
-              }`}
-            >
-              Vui lòng nhấn vào biểu tượng thư mục 📁 để tải dữ liệu Messenger.
+            <div className='p-6 text-center text-sm text-gray-400'>
+              Nhấn vào biểu tượng thư mục 📁 ở góc trên để tải thư mục chứa tin nhắn Messenger của bạn.
             </div>
           )}
           {filteredChats.map((chat) => {
@@ -337,74 +327,67 @@ const Home: NextPage = () => {
               <div
                 key={id}
                 onClick={() => setSelectedChatId(id)}
-                className={`cursor-pointer rounded-xl p-3 transition-colors ${
+                className={`flex items-center gap-3 cursor-pointer rounded-xl p-2.5 transition-colors ${
                   isSelected
-                    ? 'bg-blue-600 text-white font-medium shadow-sm'
-                    : isDark
-                    ? 'hover:bg-gray-800/80 text-gray-200'
-                    : 'hover:bg-gray-100 text-gray-800'
+                    ? isDark ? 'bg-[#3a3b3c]' : 'bg-[#e4e6eb]'
+                    : isDark ? 'hover:bg-[#3a3b3c]/60' : 'hover:bg-[#f2f2f2]'
                 }`}
               >
-                <p className='font-semibold truncate text-sm'>
-                  {chat.title || chat.name}
-                </p>
-                <p
-                  className={`text-xs truncate mt-0.5 ${
-                    isSelected
-                      ? 'text-blue-100'
-                      : isDark
-                      ? 'text-gray-400'
-                      : 'text-gray-500'
-                  }`}
-                >
-                  {chat.dirName}
-                </p>
+                <div className='w-12 h-12 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-inner'>
+                  {(chat.title || chat.name || 'C').charAt(0).toUpperCase()}
+                </div>
+                <div className='flex-1 min-w-0'>
+                  <p className='font-semibold truncate text-sm'>
+                    {chat.title || chat.name}
+                  </p>
+                  <p className={`text-xs truncate mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                    {chat.dirName}
+                  </p>
+                </div>
               </div>
             );
           })}
         </div>
       </aside>
 
-      {/* Khu vực khung chat chính */}
+      {/* Khu vực khung chat chính (Chuẩn phong cách Facebook Messenger) */}
       <main className='flex flex-1 flex-col overflow-hidden'>
         {currentMessage ? (
           <div className='flex h-full w-full'>
-            <div
-              className={`flex flex-1 flex-col overflow-hidden border-r ${
-                isDark ? 'border-gray-800' : 'border-gray-200'
-              }`}
-            >
+            <div className={`flex flex-1 flex-col overflow-hidden ${isDark ? 'bg-[#242526]' : 'bg-white'}`}>
+              
+              {/* Header chat */}
               <div
-                className={`flex items-center justify-between border-b p-4 shadow-sm ${
-                  isDark ? 'border-gray-800 bg-gray-900' : 'border-gray-200 bg-white'
+                className={`flex items-center justify-between px-4 py-3 border-b shadow-xs z-10 ${
+                  isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
                 }`}
               >
-                <div>
-                  <h2 className='text-lg font-bold'>
-                    {currentMessage.title || currentMessage.name}
-                  </h2>
-                  <p
-                    className={`text-xs font-medium ${
-                      isDark ? 'text-gray-400' : 'text-gray-500'
-                    }`}
-                  >
-                    {currentMessage.messages.length} tin nhắn
-                  </p>
+                <div className='flex items-center gap-3'>
+                  <div className='w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm'>
+                    {(currentMessage.title || currentMessage.name || 'C').charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className='text-sm font-bold leading-tight'>
+                      {currentMessage.title || currentMessage.name}
+                    </h2>
+                    <p className={`text-[11px] ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                      Lưu trữ tin nhắn
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              {/* Danh sách tin nhắn */}
+              {/* Danh sách tin nhắn phong cách bong bóng Messenger */}
               <div
-                className={`flex-1 overflow-y-auto p-4 space-y-4 ${
-                  isDark ? 'bg-gray-900' : 'bg-gray-50'
+                className={`flex-1 overflow-y-auto p-4 space-y-1.5 ${
+                  isDark ? 'bg-[#242526]' : 'bg-white'
                 }`}
               >
-                {currentMessage.messages.map((msg: any, idx: number) => {
+                {currentMessage.messages.map((msg: any, idx: number, arr: any[]) => {
                   const sender = decodeString(msg.sender_name);
                   const isMe = myName ? sender === myName : false;
                   const decodedContent = decodeString(msg.content || '');
                   
-                  // Kiểm tra trích xuất đường dẫn video từ nội dung chuỗi (định dạng [Video: đường_dẫn])
                   const videoMatch = decodedContent.match(/\[Video:\s*([^\]]+)\]/);
                   const embeddedVideoUri = videoMatch ? videoMatch[1].trim() : null;
 
@@ -414,30 +397,35 @@ const Home: NextPage = () => {
                   const hasVideos = (msg.videos && msg.videos.length > 0) || embeddedVideoUri;
                   const hasShare = Boolean(msg.share?.link);
 
+                  // Nhóm tin nhắn liên tiếp từ cùng một người để thu gọn tên
+                  const prevMsg = idx > 0 ? arr[idx - 1] : null;
+                  const prevSender = prevMsg ? decodeString(prevMsg.sender_name) : null;
+                  const showSenderHeader = !isMe && sender !== prevSender;
+
                   return (
                     <div
                       key={idx}
                       className={`flex flex-col ${
                         isMe ? 'items-end' : 'items-start'
-                      }`}
+                      } ${showSenderHeader ? 'mt-3' : 'mt-0.5'}`}
                     >
-                      <span
-                        className={`text-xs mb-1 font-medium ${
-                          isDark ? 'text-gray-400' : 'text-gray-600'
-                        }`}
-                      >
-                        {sender}
-                      </span>
+                      {/* Tên người gửi chỉ hiện khi đổi người */}
+                      {showSenderHeader && (
+                        <span className={`text-[11px] mb-1 ml-1 font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                          {sender}
+                        </span>
+                      )}
+
                       <div
-                        className={`max-w-[70%] rounded-2xl px-4 py-2.5 text-sm shadow-sm leading-relaxed ${
+                        className={`max-w-[65%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-xs ${
                           isMe
-                            ? 'bg-blue-600 text-white rounded-br-none'
+                            ? 'bg-[#0084ff] text-white rounded-tr-xs rounded-br-xs'
                             : isDark
-                            ? 'bg-gray-800 text-gray-100 rounded-bl-none border border-gray-700'
-                            : 'bg-white text-gray-900 rounded-bl-none border border-gray-200'
+                            ? 'bg-[#3e4042] text-[#e4e6eb] rounded-tl-xs rounded-bl-xs'
+                            : 'bg-[#f0f2f5] text-black rounded-tl-xs rounded-bl-xs'
                         }`}
                       >
-                        {/* Nội dung chữ bình thường */}
+                        {/* Văn bản */}
                         {hasContent && (
                           <p className='whitespace-pre-wrap break-words'>
                             {decodedContent}
@@ -446,7 +434,7 @@ const Home: NextPage = () => {
 
                         {/* Hình ảnh */}
                         {hasPhotos && (
-                          <div className='mt-2 flex flex-col gap-2'>
+                          <div className='flex flex-col gap-1.5 my-1'>
                             {msg.photos.map((p: any, pIdx: number) => (
                               <FsImage
                                 key={pIdx}
@@ -460,22 +448,14 @@ const Home: NextPage = () => {
 
                         {/* Sticker */}
                         {hasSticker && (
-                          <div
-                            className={`mt-1 italic text-xs flex items-center gap-1 ${
-                              isMe
-                                ? 'text-yellow-200'
-                                : isDark
-                                ? 'text-yellow-400'
-                                : 'text-yellow-600'
-                            }`}
-                          >
-                            <span>🎨 [Sticker: {msg.sticker.uri}]</span>
+                          <div className='italic text-xs py-1'>
+                            <span>🎨 [Sticker]</span>
                           </div>
                         )}
 
-                        {/* Video trực tiếp (Xử lý cả mảng msg.videos hoặc chuỗi embeddedVideoUri trong content) */}
+                        {/* Video */}
                         {hasVideos && (
-                          <div className='mt-2 flex flex-col gap-2'>
+                          <div className='flex flex-col gap-1.5 my-1'>
                             {msg.videos ? (
                               msg.videos.map((v: any, vIdx: number) => (
                                 <FsVideo
@@ -495,12 +475,12 @@ const Home: NextPage = () => {
 
                         {/* Share link */}
                         {hasShare && (
-                          <div className='mt-1'>
+                          <div>
                             <a
                               href={msg.share.link}
                               target='_blank'
                               rel='noreferrer'
-                              className='underline text-blue-300 break-all'
+                              className='underline text-blue-200 break-all text-xs'
                             >
                               {decodeString(
                                 msg.share.share_text || msg.share.link
@@ -513,11 +493,24 @@ const Home: NextPage = () => {
                   );
                 })}
               </div>
+
+              {/* Thanh nhập tin nhắn giả lập dưới cùng chuẩn Messenger Web */}
+              <div className={`p-3 border-t flex items-center gap-2 ${isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'}`}>
+                <div className={`flex-1 flex items-center rounded-full px-4 py-2 ${isDark ? 'bg-[#3a3b3c]' : 'bg-[#f0f2f5]'}`}>
+                  <input
+                    type='text'
+                    disabled
+                    placeholder='Aa (Chế độ xem lịch sử lưu trữ)'
+                    className={`w-full bg-transparent text-sm outline-none cursor-not-allowed ${isDark ? 'text-gray-400 placeholder-gray-500' : 'text-gray-500 placeholder-gray-400'}`}
+                  />
+                </div>
+              </div>
+
             </div>
           </div>
         ) : (
-          <div className='flex flex-1 items-center justify-center text-sm text-gray-500'>
-            Chọn một đoạn chat để xem lịch sử tin nhắn
+          <div className={`flex flex-1 items-center justify-center text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+            Chọn một đoạn chat bên trái để xem lịch sử tin nhắn
           </div>
         )}
       </main>
