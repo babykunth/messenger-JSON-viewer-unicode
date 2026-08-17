@@ -1,6 +1,7 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import useSWR from 'swr';
 import { findInboxFolder } from '@/lib/utils/file';
 import {
@@ -22,7 +23,6 @@ import useThemeColor from '@/lib/hooks/useThemeColor';
 import useToggle from '@/lib/hooks/useToggle';
 import useWindowOverlay from '@/lib/hooks/useWindowOverlay';
 
-// Từ điển đa ngôn ngữ (Tiếng Việt & Tiếng Anh)
 const translations = {
   vi: {
     chatsTitle: 'Đoạn chat',
@@ -391,7 +391,6 @@ export default function HomePage() {
                   })}
                   key={groupIdx}
                 >
-                  {/* Avatar */}
                   {!isMe && (
                     <div className='flex flex-col items-center justify-end'>
                       <div
@@ -403,7 +402,6 @@ export default function HomePage() {
                     </div>
                   )}
 
-                  {/* Messages */}
                   <div
                     className='item flex flex-col justify-between gap-0.5'
                     style={{
