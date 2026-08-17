@@ -246,7 +246,7 @@ const Home: NextPage = () => {
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [showRightSidebar, setShowRightSidebar] = useState(true);
-  const [mediaTab, setMediaTab] = useState<'media' | 'files' | 'links'>('media');
+  const [mediaTab, setMediaTab] = useState<'media' | 'files' | 'links' | 'members'>('media');
 
   const handleOpenFolder = async () => {
     try {
@@ -287,52 +287,74 @@ const Home: NextPage = () => {
   const currentMessage = useCurrentMessage(chats || null, selectedChatId);
   const isDark = theme === 'dark';
 
-  // Trích xuất toàn bộ Media, Files, Links từ đoạn chat hiện tại
-  const chatMediaItems = useMemo(() => {
-    if (!currentMessage?.messages) return { photos: [], videos: [], files: [], links: [] };
+  // Trích xuất Media, Files, Links và Thống kê thành viên từ đoạn chat hiện tại
+  const chatDataAnalysis = useMemo(() => {
+    if (!currentMessage?.messages) return { photos: [], videos: [], files: [], links: [], members: {} };
     const photos: any[] = [];
     const videos: any[] = [];
     const files: any[] = [];
     const links: any[] = [];
+    const membersMap: Record<string, { name: string; messages: number; photos: number; videos: number; links: number }> = {};
 
     currentMessage.messages.forEach((msg: any) => {
+      const sender = decodeString(msg.sender_name || 'Người dùng ẩn danh');
+      if (!membersMap[sender]) {
+        membersMap[sender] = { name: sender, messages: 0, photos: 0, videos: 0, links: 0 };
+      }
+      membersMap[sender].messages += 1;
+
       // Ảnh
       if (msg.photos) {
-        msg.photos.forEach((p: any) => photos.push(p.uri));
+        msg.photos.forEach((p: any) => {
+          photos.push(p.uri);
+          membersMap[sender].photos += 1;
+        });
       }
-      // Video (từ mảng videos)
+      // Video
+      let hasMsgVideo = false;
       if (msg.videos) {
         msg.videos.forEach((v: any) => {
           videos.push(typeof v === 'string' ? v : v.uri);
+          hasMsgVideo = true;
         });
       }
+      
       // File tài liệu
       if (msg.files) {
         msg.files.forEach((f: any) => files.push(f));
       }
+
       // Share link hoặc URL trong content
+      let hasMsgLink = false;
       if (msg.share?.link) {
         links.push({ title: decodeString(msg.share.share_text || msg.share.link), url: msg.share.link });
+        hasMsgLink = true;
       }
       if (msg.content) {
         const decoded = decodeString(msg.content);
         const videoMatch = decoded.match(/\[Video:\s*([^\]]+)\]/);
         if (videoMatch) {
           videos.push(videoMatch[1].trim());
+          hasMsgVideo = true;
         }
-        // Phát hiện link đơn giản trong text
         const urlMatches = decoded.match(/https?:\/\/[^\s]+/g);
         if (urlMatches) {
           urlMatches.forEach((url: string) => {
             if (!links.some((l) => l.url === url)) {
               links.push({ title: url, url });
             }
+            hasMsgLink = true;
           });
         }
       }
+
+      if (hasMsgVideo) membersMap[sender].videos += 1;
+      if (hasMsgLink) membersMap[sender].links += 1;
     });
 
-    return { photos, videos, files, links };
+    const members = Object.values(membersMap).sort((a, b) => b.messages - a.messages);
+
+    return { photos, videos, files, links, members };
   }, [currentMessage]);
 
   return (
@@ -591,10 +613,10 @@ const Home: NextPage = () => {
 
             </div>
 
-            {/* 3. Cột Sidebar Phải: Quản lý File phương tiện, File và Liên kết (Giống Messenger) */}
+            {/* 3. Cột Sidebar Phải: Phương tiện, File, Liên kết và Thành viên */}
             {showRightSidebar && (
               <aside
-                className={`w-[300px] flex flex-col border-l overflow-hidden ${
+                className={`w-[320px] flex flex-col border-l overflow-hidden ${
                   isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
                 }`}
               >
@@ -607,15 +629,15 @@ const Home: NextPage = () => {
                     {currentMessage.title || currentMessage.name}
                   </h3>
                   <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Đoạn chat lưu trữ
+                    Đoạn chat lưu trữ ({chatDataAnalysis.members.length} thành viên)
                   </p>
                 </div>
 
-                {/* Các Tab chuyển đổi phương tiện */}
-                <div className={`flex border-b text-xs font-semibold ${isDark ? 'border-[#393a3b]' : 'border-gray-200'}`}>
+                {/* Các Tab chuyển đổi */}
+                <div className={`flex border-b text-xs font-semibold overflow-x-auto ${isDark ? 'border-[#393a3b]' : 'border-gray-200'}`}>
                   <button
                     onClick={() => setMediaTab('media')}
-                    className={`flex-1 py-3 text-center border-b-2 transition-colors ${
+                    className={`flex-1 py-3 px-2 text-center border-b-2 whitespace-nowrap transition-colors ${
                       mediaTab === 'media'
                         ? 'border-blue-500 text-blue-500'
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
@@ -625,23 +647,33 @@ const Home: NextPage = () => {
                   </button>
                   <button
                     onClick={() => setMediaTab('files')}
-                    className={`flex-1 py-3 text-center border-b-2 transition-colors ${
+                    className={`flex-1 py-3 px-2 text-center border-b-2 whitespace-nowrap transition-colors ${
                       mediaTab === 'files'
                         ? 'border-blue-500 text-blue-500'
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                   >
-                    File ({chatMediaItems.files.length})
+                    File ({chatDataAnalysis.files.length})
                   </button>
                   <button
                     onClick={() => setMediaTab('links')}
-                    className={`flex-1 py-3 text-center border-b-2 transition-colors ${
+                    className={`flex-1 py-3 px-2 text-center border-b-2 whitespace-nowrap transition-colors ${
                       mediaTab === 'links'
                         ? 'border-blue-500 text-blue-500'
                         : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
                     }`}
                   >
                     Liên kết
+                  </button>
+                  <button
+                    onClick={() => setMediaTab('members')}
+                    className={`flex-1 py-3 px-2 text-center border-b-2 whitespace-nowrap transition-colors ${
+                      mediaTab === 'members'
+                        ? 'border-blue-500 text-blue-500'
+                        : isDark ? 'border-transparent text-gray-400 hover:text-gray-200' : 'border-transparent text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    Thành viên ({chatDataAnalysis.members.length})
                   </button>
                 </div>
 
@@ -651,12 +683,11 @@ const Home: NextPage = () => {
                     <div className='space-y-4'>
                       <div>
                         <h4 className={`text-xs font-bold mb-2 uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                          Ảnh & Video ({chatMediaItems.photos.length + chatMediaItems.videos.length})
+                          Ảnh & Video ({chatDataAnalysis.photos.length + chatDataAnalysis.videos.length})
                         </h4>
                         
-                        {/* Lưới hiển thị ảnh */}
                         <div className='grid grid-cols-3 gap-1.5'>
-                          {chatMediaItems.photos.map((uri: string, pIdx: number) => (
+                          {chatDataAnalysis.photos.map((uri: string, pIdx: number) => (
                             <div key={`p-${pIdx}`} className='aspect-square rounded-lg overflow-hidden bg-gray-800'>
                               <FsImage
                                 rootDir={directory}
@@ -668,16 +699,15 @@ const Home: NextPage = () => {
                           ))}
                         </div>
 
-                        {/* Danh sách video nếu có */}
-                        {chatMediaItems.videos.length > 0 && (
+                        {chatDataAnalysis.videos.length > 0 && (
                           <div className='mt-3 space-y-2'>
-                            {chatMediaItems.videos.map((vUri: string, vIdx: number) => (
+                            {chatDataAnalysis.videos.map((vUri: string, vIdx: number) => (
                               <FsVideo key={`v-${vIdx}`} rootDir={directory} uri={vUri} />
                             ))}
                           </div>
                         )}
 
-                        {chatMediaItems.photos.length === 0 && chatMediaItems.videos.length === 0 && (
+                        {chatDataAnalysis.photos.length === 0 && chatDataAnalysis.videos.length === 0 && (
                           <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                             Không có tệp phương tiện nào
                           </p>
@@ -688,7 +718,7 @@ const Home: NextPage = () => {
 
                   {mediaTab === 'files' && (
                     <div className='space-y-2'>
-                      {chatMediaItems.files.map((file: any, fIdx: number) => (
+                      {chatDataAnalysis.files.map((file: any, fIdx: number) => (
                         <div key={fIdx} className={`p-2.5 rounded-xl flex items-center gap-2.5 ${isDark ? 'bg-[#3a3b3c]' : 'bg-gray-100'}`}>
                           <span className='text-lg'>📄</span>
                           <div className='min-w-0 flex-1'>
@@ -696,7 +726,7 @@ const Home: NextPage = () => {
                           </div>
                         </div>
                       ))}
-                      {chatMediaItems.files.length === 0 && (
+                      {chatDataAnalysis.files.length === 0 && (
                         <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                           Không có file tài liệu nào
                         </p>
@@ -706,7 +736,7 @@ const Home: NextPage = () => {
 
                   {mediaTab === 'links' && (
                     <div className='space-y-2'>
-                      {chatMediaItems.links.map((linkObj: any, lIdx: number) => (
+                      {chatDataAnalysis.links.map((linkObj: any, lIdx: number) => (
                         <a
                           key={lIdx}
                           href={linkObj.url}
@@ -720,9 +750,59 @@ const Home: NextPage = () => {
                           <p className={`text-[10px] truncate mt-0.5 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>{linkObj.url}</p>
                         </a>
                       ))}
-                      {chatMediaItems.links.length === 0 && (
+                      {chatDataAnalysis.links.length === 0 && (
                         <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
                           Không có liên kết nào
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {mediaTab === 'members' && (
+                    <div className='space-y-3'>
+                      <h4 className={`text-xs font-bold uppercase ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        Thành viên & Thống kê đóng góp
+                      </h4>
+                      {chatDataAnalysis.members.map((member: any, mIdx: number) => (
+                        <div
+                          key={mIdx}
+                          className={`p-3 rounded-xl flex flex-col gap-1.5 ${
+                            isDark ? 'bg-[#3a3b3c]' : 'bg-gray-100'
+                          }`}
+                        >
+                          <div className='flex items-center gap-2'>
+                            <div className='w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shrink-0'>
+                              {member.name.charAt(0).toUpperCase()}
+                            </div>
+                            <span className={`text-xs font-bold truncate flex-1 ${getUserColor(member.name, isDark)}`}>
+                              {member.name}
+                            </span>
+                          </div>
+                          
+                          {/* Thống kê chi tiết số lượng */}
+                          <div className={`grid grid-cols-4 gap-1 pt-1 border-t text-center text-[10px] ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-200 text-gray-600'}`}>
+                            <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
+                              <p className='font-bold'>{member.messages}</p>
+                              <p className='text-[9px] opacity-75'>Tin nhắn</p>
+                            </div>
+                            <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
+                              <p className='font-bold'>{member.photos}</p>
+                              <p className='text-[9px] opacity-75'>Ảnh</p>
+                            </div>
+                            <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
+                              <p className='font-bold'>{member.videos}</p>
+                              <p className='text-[9px] opacity-75'>Video</p>
+                            </div>
+                            <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
+                              <p className='font-bold'>{member.links}</p>
+                              <p className='text-[9px] opacity-75'>Link</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {chatDataAnalysis.members.length === 0 && (
+                        <p className={`text-xs text-center py-6 italic ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Không có dữ liệu thành viên
                         </p>
                       )}
                     </div>
