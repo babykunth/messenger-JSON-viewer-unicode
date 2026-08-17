@@ -3,12 +3,10 @@ import cx from 'clsx';
 import { Popover } from 'react-tiny-popover';
 import { SRLWrapper } from 'simple-react-lightbox';
 import useSWR from 'swr';
-
 import useToggle from '@/lib/hooks/useToggle';
 import { getFileHandleRecursively } from '@/lib/utils/file';
 import { decodeString, useGroupedActorsByReaction } from '@/lib/utils/message';
 import { Message, Photo } from '@/types';
-
 import FsImage from './FsImage';
 
 function ReactionButton({
@@ -19,7 +17,6 @@ function ReactionButton({
   actors: string[];
 }) {
   const [isPopoverOpen, setPopoverOpen, togglePopover] = useToggle(false);
-
   return (
     <Popover
       isOpen={isPopoverOpen}
@@ -56,7 +53,6 @@ function BaseMessage({
 }) {
   const [isPopoverOpen, setPopoverOpen, togglePopover] = useToggle(false);
   const groupedActions = useGroupedActorsByReaction(message);
-
   return (
     <div
       className={cx('flex', {
@@ -95,7 +91,6 @@ function BaseMessage({
           }}
         >
           {children}
-
           {groupedActions && (
             <div className='absolute right-2 -bottom-5 select-none rounded-2xl bg-white px-2 py-0.5 shadow dark:bg-slate-800'>
               {Object.entries(groupedActions).map(([reaction, actors]) => (
@@ -120,7 +115,7 @@ export default function MessageComponent({
   isMe,
   rootDir,
 }: {
-  message: Message;
+  message: Message & { videos?: string | string[] | Array<{ uri: string }> };
   isFirst: boolean;
   isLast: boolean;
   isMe: boolean;
@@ -129,15 +124,11 @@ export default function MessageComponent({
   const content = decodeString(message.content);
 
   const { data: imageURIs } = useSWR(
-    () =>
-      message.photos
-        ? `/message/photo/${message.timestamp_ms}`
-        : null,
+    () => (message.photos ? `/message/photo/${message.timestamp_ms}` : null),
     async () => {
       if (!message.photos) {
         return [];
       }
-
       const images = await Promise.all(
         message.photos.map(async (photo: Photo) => {
           const uri = photo.uri.replace(/^messages\//, '');
@@ -149,24 +140,21 @@ export default function MessageComponent({
           return URL.createObjectURL(file);
         })
       );
-
       return images.filter(Boolean) as string[];
     }
   );
 
   // Thêm xử lý SWR để đọc tệp video cục bộ qua File System Access API
   const { data: videoURIs } = useSWR(
-    () =>
-      message.videos
-        ? `/message/video/${message.timestamp_ms}`
-        : null,
+    () => (message.videos ? `/message/video/${message.timestamp_ms}` : null),
     async () => {
       if (!message.videos) {
         return [];
       }
-
-      // Xử lý trường hợp message.videos có thể là mảng hoặc chuỗi tùy cấu trúc dữ liệu JSON xuất ra
-      const videoList = Array.isArray(message.videos) ? message.videos : [message.videos];
+      
+      // Chuẩn hóa message.videos thành danh sách các chuỗi uri (hỗ trợ cả dạng string, mảng string hoặc mảng object)
+      const rawVideos = Array.isArray(message.videos) ? message.videos : [message.videos];
+      const videoList = rawVideos.map((v) => (typeof v === 'string' ? v : v.uri));
 
       const videos = await Promise.all(
         videoList.map(async (videoUri: string) => {
@@ -179,7 +167,6 @@ export default function MessageComponent({
           return URL.createObjectURL(file);
         })
       );
-
       return videos.filter(Boolean) as string[];
     }
   );
@@ -225,16 +212,18 @@ export default function MessageComponent({
         isMe={isMe}
         message={message}
       >
-        {videoURIs && videoURIs.length > 0
-          ? videoURIs.map((uri) => (
-              <video
-                key={uri}
-                controls
-                className="max-h-80 w-full rounded-md object-contain bg-black"
-                src={uri}
-              />
-            ))
-          : content || '[Đang tải video...]'}
+        {videoURIs && videoURIs.length > 0 ? (
+          videoURIs.map((uri) => (
+            <video
+              key={uri}
+              controls
+              className="max-h-80 w-full rounded-md object-contain bg-black"
+              src={uri}
+            />
+          ))
+        ) : (
+          content || '[Đang tải video...]'
+        )}
       </BaseMessage>
     );
   }
