@@ -65,6 +65,13 @@ const translations = {
   },
 };
 
+// Hàm định dạng timestamp_ms sang giờ phút (ví dụ: 14:35 hoặc ngày tháng nếu cần)
+function formatMessageTime(timestampMs: number): string {
+  if (!timestampMs) return '';
+  const date = new Date(timestampMs);
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
 // Hàm lấy FileHandle thông minh từ URI tương đối của Messenger
 async function getFileHandleFromUri(
   rootDir: FileSystemDirectoryHandle,
@@ -307,7 +314,7 @@ const Home: NextPage = () => {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
-  const [lang, setLang] = useState<'vi' | 'en'>('vi'); // Trạng thái ngôn ngữ hiện tại
+  const [lang, setLang] = useState<'vi' | 'en'>('vi');
   const [showRightSidebar, setShowRightSidebar] = useState(true);
   const [mediaTab, setMediaTab] = useState<'media' | 'files' | 'links' | 'members'>('media');
 
@@ -352,7 +359,6 @@ const Home: NextPage = () => {
   const currentMessage = useCurrentMessage(chats || null, selectedChatId);
   const isDark = theme === 'dark';
 
-  // Trích xuất Media, Files, Links và Thống kê thành viên từ đoạn chat hiện tại
   const chatDataAnalysis = useMemo(() => {
     if (!currentMessage?.messages) {
       return { photos: [] as string[], videos: [] as string[], files: [] as any[], links: [] as any[], members: [] as MemberStat[] };
@@ -370,14 +376,12 @@ const Home: NextPage = () => {
       }
       membersMap[sender].messages += 1;
 
-      // Ảnh
       if (msg.photos) {
         msg.photos.forEach((p: any) => {
           photos.push(p.uri);
           membersMap[sender].photos += 1;
         });
       }
-      // Video
       let hasMsgVideo = false;
       if (msg.videos) {
         msg.videos.forEach((v: any) => {
@@ -386,12 +390,10 @@ const Home: NextPage = () => {
         });
       }
       
-      // File tài liệu
       if (msg.files) {
         msg.files.forEach((f: any) => files.push(f));
       }
 
-      // Share link hoặc URL trong content
       let hasMsgLink = false;
       if (msg.share?.link) {
         links.push({ title: decodeString(msg.share.share_text || msg.share.link), url: msg.share.link });
@@ -440,7 +442,6 @@ const Home: NextPage = () => {
           isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
         }`}
       >
-        {/* Nút chuyển đổi ngôn ngữ ở góc trên cùng bên trái, ngay phía trên chữ Đoạn chat */}
         <div className='px-4 pt-3 pb-1 flex items-center justify-start'>
           <button
             onClick={() => setLang(lang === 'vi' ? 'en' : 'vi')}
@@ -582,6 +583,7 @@ const Home: NextPage = () => {
                   const sender = decodeString(msg.sender_name);
                   const isMe = myName ? sender === myName : false;
                   const decodedContent = decodeString(msg.content || '');
+                  const msgTime = formatMessageTime(msg.timestamp_ms);
                   
                   const videoMatch = decodedContent.match(/\[Video:\s*([^\]]+)\]/);
                   const embeddedVideoUri = videoMatch ? videoMatch[1].trim() : null;
@@ -599,7 +601,7 @@ const Home: NextPage = () => {
                   return (
                     <div
                       key={idx}
-                      className={`flex flex-col ${
+                      className={`flex flex-col group ${
                         isMe ? 'items-end' : 'items-start'
                       } ${showSenderHeader ? 'mt-3' : 'mt-0.5'}`}
                     >
@@ -609,72 +611,81 @@ const Home: NextPage = () => {
                         </span>
                       )}
 
-                      <div
-                        className={`max-w-[65%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-xs ${
-                          isMe
-                            ? 'bg-[#0084ff] text-white rounded-tr-xs rounded-br-xs'
-                            : isDark
-                            ? 'bg-[#3e4042] text-[#e4e6eb] rounded-tl-xs rounded-bl-xs'
-                            : 'bg-[#f0f2f5] text-black rounded-tl-xs rounded-bl-xs'
-                        }`}
-                      >
-                        {hasContent && (
-                          <p className='whitespace-pre-wrap break-words'>
-                            {decodedContent}
-                          </p>
-                        )}
+                      <div className={`flex items-end gap-1.5 max-w-[65%] ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div
+                          className={`rounded-2xl px-3.5 py-2 text-sm leading-relaxed shadow-xs ${
+                            isMe
+                              ? 'bg-[#0084ff] text-white rounded-tr-xs rounded-br-xs'
+                              : isDark
+                              ? 'bg-[#3e4042] text-[#e4e6eb] rounded-tl-xs rounded-bl-xs'
+                              : 'bg-[#f0f2f5] text-black rounded-tl-xs rounded-bl-xs'
+                          }`}
+                        >
+                          {hasContent && (
+                            <p className='whitespace-pre-wrap break-words'>
+                              {decodedContent}
+                            </p>
+                          )}
 
-                        {hasPhotos && (
-                          <div className='flex flex-col gap-1.5 my-1'>
-                            {msg.photos.map((p: any, pIdx: number) => (
-                              <FsImage
-                                key={pIdx}
-                                rootDir={directory}
-                                uri={p.uri}
-                                alt={`photo-${pIdx}`}
-                              />
-                            ))}
-                          </div>
-                        )}
-
-                        {hasSticker && (
-                          <div className='italic text-xs py-1'>
-                            <span>🎨 [Sticker]</span>
-                          </div>
-                        )}
-
-                        {hasVideos && (
-                          <div className='flex flex-col gap-1.5 my-1'>
-                            {msg.videos ? (
-                              msg.videos.map((v: any, vIdx: number) => (
-                                <FsVideo
-                                  key={vIdx}
+                          {hasPhotos && (
+                            <div className='flex flex-col gap-1.5 my-1'>
+                              {msg.photos.map((p: any, pIdx: number) => (
+                                <FsImage
+                                  key={pIdx}
                                   rootDir={directory}
-                                  uri={typeof v === 'string' ? v : v.uri}
+                                  uri={p.uri}
+                                  alt={`photo-${pIdx}`}
                                 />
-                              ))
-                            ) : embeddedVideoUri ? (
-                              <FsVideo
-                                rootDir={directory}
-                                uri={embeddedVideoUri}
-                              />
-                            ) : null}
-                          </div>
-                        )}
+                              ))}
+                            </div>
+                          )}
 
-                        {hasShare && (
-                          <div>
-                            <a
-                              href={msg.share.link}
-                              target='_blank'
-                              rel='noreferrer'
-                              className='underline text-blue-200 break-all text-xs'
-                            >
-                              {decodeString(
-                                msg.share.share_text || msg.share.link
-                              )}
-                            </a>
-                          </div>
+                          {hasSticker && (
+                            <div className='italic text-xs py-1'>
+                              <span>🎨 [Sticker]</span>
+                            </div>
+                          )}
+
+                          {hasVideos && (
+                            <div className='flex flex-col gap-1.5 my-1'>
+                              {msg.videos ? (
+                                msg.videos.map((v: any, vIdx: number) => (
+                                  <FsVideo
+                                    key={vIdx}
+                                    rootDir={directory}
+                                    uri={typeof v === 'string' ? v : v.uri}
+                                  />
+                                ))
+                              ) : embeddedVideoUri ? (
+                                <FsVideo
+                                  rootDir={directory}
+                                  uri={embeddedVideoUri}
+                                />
+                              ) : null}
+                            </div>
+                          )}
+
+                          {hasShare && (
+                            <div>
+                              <a
+                                href={msg.share.link}
+                                target='_blank'
+                                rel='noreferrer'
+                                className='underline text-blue-200 break-all text-xs'
+                              >
+                                {decodeString(
+                                  msg.share.share_text || msg.share.link
+                                )}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Thời gian hiển thị nhỏ bên cạnh (giống Messenger thực tế khi hover hoặc luôn hiện nhỏ) */}
+                        {msgTime && (
+                          <span className={`text-[10px] select-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {msgTime}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -696,14 +707,13 @@ const Home: NextPage = () => {
 
             </div>
 
-            {/* 3. Cột Sidebar Phải: Phương tiện, File, Liên kết và Thành viên */}
+            {/* 3. Cột Sidebar Phải */}
             {showRightSidebar && (
               <aside
                 className={`w-[320px] flex flex-col border-l overflow-hidden ${
                   isDark ? 'border-[#393a3b] bg-[#242526]' : 'border-gray-200 bg-white'
                 }`}
               >
-                {/* Header thông tin chat */}
                 <div className='flex flex-col items-center py-6 px-4 border-b border-gray-700/20'>
                   <div className='w-20 h-20 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-md mb-3'>
                     {(currentMessage.title || currentMessage.name || 'C').charAt(0).toUpperCase()}
@@ -716,7 +726,6 @@ const Home: NextPage = () => {
                   </p>
                 </div>
 
-                {/* Các Tab chuyển đổi */}
                 <div className={`flex border-b text-xs font-semibold overflow-x-auto ${isDark ? 'border-[#393a3b]' : 'border-gray-200'}`}>
                   <button
                     onClick={() => setMediaTab('media')}
@@ -760,7 +769,6 @@ const Home: NextPage = () => {
                   </button>
                 </div>
 
-                {/* Nội dung danh sách theo Tab */}
                 <div className='flex-1 overflow-y-auto p-3'>
                   {mediaTab === 'media' && (
                     <div className='space-y-4'>
@@ -862,7 +870,6 @@ const Home: NextPage = () => {
                             </span>
                           </div>
                           
-                          {/* Thống kê chi tiết số lượng */}
                           <div className={`grid grid-cols-4 gap-1 pt-1 border-t text-center text-[10px] ${isDark ? 'border-gray-600 text-gray-300' : 'border-gray-200 text-gray-600'}`}>
                             <div className='bg-black/10 dark:bg-white/5 rounded p-1'>
                               <p className='font-bold'>{member.messages}</p>
