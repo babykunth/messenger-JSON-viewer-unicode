@@ -65,11 +65,29 @@ const translations = {
   },
 };
 
-// Hàm định dạng timestamp_ms sang giờ phút (ví dụ: 14:35 hoặc ngày tháng nếu cần)
+// Hàm định dạng timestamp_ms thông minh: hiển thị giờ phút nếu trong ngày, hiển thị cả ngày tháng nếu khác ngày
 function formatMessageTime(timestampMs: number): string {
   if (!timestampMs) return '';
   const date = new Date(timestampMs);
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  const now = new Date();
+  
+  const isToday =
+    date.getDate() === now.getDate() &&
+    date.getMonth() === now.getMonth() &&
+    date.getFullYear() === now.getFullYear();
+
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+  } else {
+    return date.toLocaleString([], {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  }
 }
 
 // Hàm lấy FileHandle thông minh từ URI tương đối của Messenger
@@ -681,7 +699,7 @@ const Home: NextPage = () => {
                           )}
                         </div>
 
-                        {/* Thời gian hiển thị nhỏ bên cạnh (giống Messenger thực tế khi hover hoặc luôn hiện nhỏ) */}
+                        {/* Thời gian chi tiết hiển thị khi hover hoặc bấm */}
                         {msgTime && (
                           <span className={`text-[10px] select-none opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
                             {msgTime}
