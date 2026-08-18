@@ -17,7 +17,7 @@
 - Hiển thị thời gian của tin nhắn.
 
 ## Thêm lỗi :
-- Không hỗ trợ định dạng backup tin nhắn cũ là loại bao gồm folder chỉ chứa .json và thư mục con "media"
+- Không hỗ trợ định dạng backup tin nhắn cũ bao gồm folder chỉ chứa .json (nội dung tin nhắn) và thư mục con "media" mà không chứa các file khác như loại backup mới.
 
 ### Công nghệ sử dụng
 
