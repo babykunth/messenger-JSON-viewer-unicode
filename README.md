@@ -13,11 +13,11 @@
 - Hỗ trợ giải mã ký tự tiếng Việt Unicode.
 - Giao diện hiển thị hỗ trợ English - Tiếng Việt.
 - Xem trực tiếp hình ảnh, video ngay trong đoạn chat.
-- Cập nhật giao diện tính năng, cột hiển thị thống kê của đoạn chat : Ảnh - Video - Link - Thành viên.
+- Cập nhật giao diện tính năng, cột hiển thị toàn bộ và thống kê của đoạn chat đó : Ảnh - Video - Link - Thành viên.
 - Hiển thị thời gian của tin nhắn.
 
 ## Thêm lỗi :
-- Không hỗ trợ định dạng backup cũ là loại bao gồm folder chỉ chứa .json và thư mục con "media"
+- Không hỗ trợ định dạng backup tin nhắn cũ là loại bao gồm folder chỉ chứa .json và thư mục con "media"
 
 ### Công nghệ sử dụng
 
