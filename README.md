@@ -16,6 +16,9 @@
 - Cập nhật giao diện tính năng, cột hiển thị thống kê của đoạn chat : Ảnh - Video - Link - Thành viên.
 - Hiển thị thời gian của tin nhắn.
 
+## Thêm lỗi :
+- Không hỗ trợ định dạng backup cũ là loại bao gồm folder chỉ chứa .json và thư mục con "media"
+
 ### Công nghệ sử dụng
 
 - Next.JS + TailwindCSS
